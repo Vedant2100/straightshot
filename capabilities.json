@@ -1,0 +1,8 @@
+{
+  "db": {},
+  "user": {},
+  "sample": { "images": true },
+  "assets": {},
+  "downloads": true,
+  "mcp": { "servers": [ { "server": "alphaXiv", "tools": ["get_paper_content", "read_files_from_github_repository"] } ] }
+}

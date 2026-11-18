@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Study Loop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;600;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: a fast, honest coach; no fluff
+IDEA: one index card on a desk, highlighter marks what matters
+PICTURE: the live study card itself, large, at the top
+COLOUR and TYPE: white paper, black ink, highlighter yellow, pencil blue; Schibsted Grotesk + JetBrains Mono
+LAYOUT: drop box, the card, then tracks and the learner model */
+:root{color-scheme:light dark;--bg:light-dark(#efefea,#111);--paper:light-dark(#fff,#1b1b1b);--ink:light-dark(#141414,#ececec);--mute:light-dark(#5d5d57,#a5a59d);--line:light-dark(#d9d9d2,#323232);--hl:#ffe14d;--blue:light-dark(#2453d6,#86a6ff);--bad:light-dark(#c62d1f,#ff7d6e);--good:light-dark(#17773f,#62d798)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Schibsted Grotesk",system-ui,sans-serif;overflow-x:clip}
+.wrap{max-width:900px;margin:0 auto;padding:clamp(18px,3vw,40px) max(4vw,14px) 60px}
+h1{font-size:clamp(32px,5vw,46px);line-height:1.05;margin:0;font-weight:800;letter-spacing:-.02em}
+h1 mark{background:linear-gradient(transparent 55%,var(--hl) 55%);color:inherit}
+h2{font-size:24px;line-height:1.15;margin:0 0 8px}h3{font-size:16px;margin:18px 0 8px}
+.sub{color:var(--mute);margin:6px 0 18px}
+#stat{font-size:14px;color:var(--mute)}
+.drop{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;margin:0 0 8px}
+textarea,input,select{font:inherit;font-size:16px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+textarea:focus,input:focus,select:focus,button:focus-visible,a:focus-visible{outline:3px solid var(--blue);outline-offset:1px}
+#src{min-height:48px;resize:vertical}
+.pkg{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--paper);border:1.5px solid var(--hl);border-radius:10px;padding:8px 12px;margin:0 0 8px;font-size:15px}
+.pkg[hidden]{display:none}
+.btn{font:600 15px "Schibsted Grotesk",sans-serif;min-height:44px;padding:0 18px;border-radius:10px;border:1.5px solid var(--ink);background:var(--ink);color:var(--paper);cursor:pointer;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn:disabled{opacity:.5;cursor:wait}
+.btn.sm{min-height:36px;padding:0 12px;font-size:14px}
+.setup{margin:0 0 18px;font-size:15px}.setup summary{color:var(--mute);font-weight:600}
+.bm{display:inline-flex;align-items:center;min-height:40px;padding:0 14px;border-radius:8px;background:var(--hl);color:#141414;font-weight:800;text-decoration:none;border:1.5px dashed #141414;cursor:grab}
+.card{background:var(--paper);border:1.5px solid var(--line);border-radius:16px;padding:clamp(18px,3vw,32px);box-shadow:0 1px 0 var(--line),0 18px 40px -28px #0006;min-height:340px}
+.meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:14px;color:var(--mute);margin-bottom:10px}
+.chip{font-weight:600;color:#141414;background:var(--hl);padding:2px 9px;border-radius:6px}
+.chip.rev{background:transparent;color:var(--blue);border:1.5px solid var(--blue)}
+.tools{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+.tools select{width:auto;min-height:36px;padding:4px 8px;font-size:14px}
+.primer{border-left:4px solid var(--hl);padding:2px 0 2px 14px;margin:12px 0 18px}
+p{margin:0 0 10px}
+code,pre,.code{font-family:"JetBrains Mono",monospace;font-size:14px}
+code{background:light-dark(#f1f1ec,#262626);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+pre{overflow-x:auto;background:light-dark(#f4f4ef,#222);padding:12px;border-radius:10px;margin:0 0 10px}
+pre code{background:none;padding:0}
+.code{min-height:300px;line-height:1.5;tab-size:4;white-space:pre;overflow:auto}
+#out{white-space:pre-wrap}#out:empty{display:none}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.q{border-top:1px solid var(--line);padding:14px 0}
+.opt{display:block;width:100%;text-align:left;min-height:44px;margin:6px 0;padding:8px 12px;border-radius:10px;border:1.5px solid var(--line);background:transparent;color:var(--ink);font:inherit;cursor:pointer}
+.opt.ok{border-color:var(--good);background:color-mix(in srgb,var(--good) 12%,transparent)}
+.opt.no{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 10%,transparent)}
+.why{color:var(--mute);font-size:15px}
+.flash{border:1.5px dashed var(--line);border-radius:14px;padding:28px 22px;text-align:center;font-size:19px;min-height:150px;display:grid;place-items:center}
+.res{border:1.5px solid var(--line);border-radius:12px;padding:14px 16px;margin-top:12px}
+.score{font-size:34px;font-weight:800;line-height:1}
+.dims{display:grid;grid-template-columns:8.5em minmax(0,1fr) 2.5em;gap:6px 10px;align-items:center;font-size:14px;margin:10px 0}
+.dims .bar{margin:0;max-width:none}.dims span:last-child{text-align:right}
+ul{margin:4px 0 10px;padding-left:20px}
+.fb{margin-top:22px;border-top:2px solid var(--ink);padding-top:6px}
+.pick{min-height:40px;padding:0 14px;border-radius:999px;border:1.5px solid var(--line);background:transparent;color:var(--ink);font:600 14px "Schibsted Grotesk";cursor:pointer}
+.pick.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.r-again.on{background:var(--bad);border-color:var(--bad)}.r-easy.on{background:var(--good);border-color:var(--good)}
+.mermaid-box{overflow-x:auto;margin:6px 0 14px;text-align:center}.mermaid-box svg{max-width:100%;height:auto}
+figure{margin:14px 0;text-align:center}figure img,.reader img{max-width:100%;height:auto;border-radius:8px;background:#fff}
+figcaption{font-size:14px;color:var(--mute);margin-top:4px}
+.reader{font-size:17px;line-height:1.65}.reader h1,.reader h2,.reader h3{line-height:1.2;margin:22px 0 8px}.reader table{border-collapse:collapse;display:block;overflow-x:auto}.reader td,.reader th{border:1px solid var(--line);padding:4px 8px}
+.reader blockquote{border-left:4px solid var(--line);margin:0 0 10px;padding-left:14px;color:var(--mute)}
+details{margin:6px 0}summary{cursor:pointer;font-weight:600}
+.timer{font:800 30px/1 "JetBrains Mono",monospace;margin:6px 0}.timer.late{color:var(--bad)}
+.load{display:grid;place-items:center;min-height:280px;color:var(--mute);text-align:center}
+.dots::after{content:"";animation:d 1.2s steps(4) infinite}@keyframes d{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+@media (prefers-reduced-motion:reduce){.dots::after{animation:none;content:"..."}}
+.tracks{margin-top:30px}
+.tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 14px;padding:14px 0;border-top:1px solid var(--line)}
+.tr b{font-size:17px}.tr small{color:var(--mute);display:block}
+.bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:6px;max-width:320px}.bar i{display:block;height:100%;background:var(--ink)}
+.trb{display:flex;gap:6px;align-items:start;flex-wrap:wrap;justify-content:end}
+.model{margin-top:26px;background:var(--paper);border:1.5px solid var(--line);border-radius:14px;padding:4px 16px}
+.fs{display:grid;grid-template-columns:9em minmax(0,1fr) 3em;gap:8px;align-items:center;font-size:14px;margin:4px 0}
+.fs span:last-child{text-align:right;color:var(--mute)}
+.top{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:18px}.top h1{font-size:32px}
+.wrap{padding-bottom:150px}
+#feed{display:flex;flex-direction:column;gap:14px}
+.msg{max-width:min(640px,92%);padding:10px 14px;border-radius:14px;line-height:1.5}
+.msg.t{background:var(--paper);border:1.5px solid var(--line);align-self:flex-start;border-top-left-radius:4px}
+.msg.me{background:var(--ink);color:var(--paper);align-self:flex-end;border-top-right-radius:4px;white-space:pre-wrap}
+.msg.done{background:transparent;border:1.5px dashed var(--line);color:var(--mute);font-size:14px;padding:6px 12px}
+.msg p:last-child{margin:0}.msg .why{font-size:14px}
+.msg.t .tr:first-of-type{border-top:0}
+.composer{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(transparent,var(--bg) 22%);padding:22px max(4vw,14px) max(14px,env(safe-area-inset-bottom))}
+.composer>*{max-width:900px;margin-inline:auto}
+.cbar{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:end;background:var(--paper);border:1.5px solid var(--ink);border-radius:14px;padding:6px}
+.cbar textarea{border:0;resize:none;max-height:180px;min-height:44px;padding:10px}
+.cbar textarea:focus{outline:none}.cbar:focus-within{outline:3px solid var(--blue)}
+.card{scroll-margin-top:12px}
+.att{font-size:22px;padding:0 14px;border:0}
+.msg.lib{max-width:100%;width:100%}
+.cl{border-top:2px solid var(--ink);padding:12px 0 4px;margin-top:10px}
+.cl h4{font-size:18px;margin:0 0 4px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.it{padding:8px 0;border-top:1px solid var(--line);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px}
+.it a{color:var(--ink);font-weight:600}.it small{color:var(--mute);display:block;font-size:13px}
+.tag{display:inline-block;font-size:12px;border:1px solid var(--line);border-radius:6px;padding:0 6px;margin:2px 4px 0 0;color:var(--mute)}
+.tag.ov{border-color:var(--blue);color:var(--blue)}.tag.dup{border-color:var(--bad);color:var(--bad)}.tag.cov{border-color:var(--good);color:var(--good)}
+.pr{width:9px;height:9px;border-radius:50%;background:var(--hl);display:inline-block;border:1.5px solid #141414}
+body.drag .cbar{outline:3px dashed var(--blue)}
+@media(max-width:600px){.drop{grid-template-columns:1fr}.tr{grid-template-columns:1fr}.trb{justify-content:start}.tools{margin-left:0}.dims{grid-template-columns:7em minmax(0,1fr) 2em}}
+/* CodeMirror 5.65.16 base styles (MIT), inlined */
+.CodeMirror {font-family: monospace;height: 300px;color: black;direction: ltr;}.CodeMirror-lines {padding: 4px 0;}.CodeMirror pre.CodeMirror-line,.CodeMirror pre.CodeMirror-line-like {padding: 0 4px;}.CodeMirror-scrollbar-filler, .CodeMirror-gutter-filler {background-color: white;}.CodeMirror-gutters {border-right: 1px solid #ddd;background-color: #f7f7f7;white-space: nowrap;}.CodeMirror-linenumbers {}.CodeMirror-linenumber {padding: 0 3px 0 5px;min-width: 20px;text-align: right;color: #999;white-space: nowrap;}.CodeMirror-guttermarker { color: black; }.CodeMirror-guttermarker-subtle { color: #999; }.CodeMirror-cursor {border-left: 1px solid black;border-right: none;width: 0;}.CodeMirror div.CodeMirror-secondarycursor {border-left: 1px solid silver;}.cm-fat-cursor .CodeMirror-cursor {width: auto;border: 0 !important;background: #7e7;}.cm-fat-cursor div.CodeMirror-cursors {z-index: 1;}.cm-fat-cursor .CodeMirror-line::selection,.cm-fat-cursor .CodeMirror-line > span::selection,.cm-fat-cursor .CodeMirror-line > span > span::selection { background: transparent; }.cm-fat-cursor .CodeMirror-line::-moz-selection,.cm-fat-cursor .CodeMirror-line > span::-moz-selection,.cm-fat-cursor .CodeMirror-line > span > span::-moz-selection { background: transparent; }.cm-fat-cursor { caret-color: transparent; }@-moz-keyframes blink {0% {}50% { background-color: transparent; }100% {}}@-webkit-keyframes blink {0% {}50% { background-color: transparent; }100% {}}@keyframes blink {0% {}50% { background-color: transparent; }100% {}}.CodeMirror-overwrite .CodeMirror-cursor {}.cm-tab { display: inline-block; text-decoration: inherit; }.CodeMirror-rulers {position: absolute;left: 0; right: 0; top: -50px; bottom: 0;overflow: hidden;}.CodeMirror-ruler {border-left: 1px solid #ccc;top: 0; bottom: 0;position: absolute;}.cm-s-default .cm-header {color: blue;}.cm-s-default .cm-quote {color: #090;}.cm-negative {color: #d44;}.cm-positive {color: #292;}.cm-header, .cm-strong {font-weight: bold;}.cm-em {font-style: italic;}.cm-link {text-decoration: underline;}.cm-strikethrough {text-decoration: line-through;}.cm-s-default .cm-keyword {color: #708;}.cm-s-default .cm-atom {color: #219;}.cm-s-default .cm-number {color: #164;}.cm-s-default .cm-def {color: #00f;}.cm-s-default .cm-variable,.cm-s-default .cm-punctuation,.cm-s-default .cm-property,.cm-s-default .cm-operator {}.cm-s-default .cm-variable-2 {color: #05a;}.cm-s-default .cm-variable-3, .cm-s-default .cm-type {color: #085;}.cm-s-default .cm-comment {color: #a50;}.cm-s-default .cm-string {color: #a11;}.cm-s-default .cm-string-2 {color: #f50;}.cm-s-default .cm-meta {color: #555;}.cm-s-default .cm-qualifier {color: #555;}.cm-s-default .cm-builtin {color: #30a;}.cm-s-default .cm-bracket {color: #997;}.cm-s-default .cm-tag {color: #170;}.cm-s-default .cm-attribute {color: #00c;}.cm-s-default .cm-hr {color: #999;}.cm-s-default .cm-link {color: #00c;}.cm-s-default .cm-error {color: #f00;}.cm-invalidchar {color: #f00;}.CodeMirror-composing { border-bottom: 2px solid; }div.CodeMirror span.CodeMirror-matchingbracket {color: #0b0;}div.CodeMirror span.CodeMirror-nonmatchingbracket {color: #a22;}.CodeMirror-matchingtag { background: rgba(255, 150, 0, .3); }.CodeMirror-activeline-background {background: #e8f2ff;}.CodeMirror {position: relative;overflow: hidden;background: white;}.CodeMirror-scroll {overflow: scroll !important;margin-bottom: -50px; margin-right: -50px;padding-bottom: 50px;height: 100%;outline: none;position: relative;z-index: 0;}.CodeMirror-sizer {position: relative;border-right: 50px solid transparent;}.CodeMirror-vscrollbar, .CodeMirror-hscrollbar, .CodeMirror-scrollbar-filler, .CodeMirror-gutter-filler {position: absolute;z-index: 6;display: none;outline: none;}.CodeMirror-vscrollbar {right: 0; top: 0;overflow-x: hidden;overflow-y: scroll;}.CodeMirror-hscrollbar {bottom: 0; left: 0;overflow-y: hidden;overflow-x: scroll;}.CodeMirror-scrollbar-filler {right: 0; bottom: 0;}.CodeMirror-gutter-filler {left: 0; bottom: 0;}.CodeMirror-gutters {position: absolute; left: 0; top: 0;min-height: 100%;z-index: 3;}.CodeMirror-gutter {white-space: normal;height: 100%;display: inline-block;vertical-align: top;margin-bottom: -50px;}.CodeMirror-gutter-wrapper {position: absolute;z-index: 4;background: none !important;border: none !important;}.CodeMirror-gutter-background {position: absolute;top: 0; bottom: 0;z-index: 4;}.CodeMirror-gutter-elt {position: absolute;cursor: default;z-index: 4;}.CodeMirror-gutter-wrapper ::selection { background-color: transparent }.CodeMirror-gutter-wrapper ::-moz-selection { background-color: transparent }.CodeMirror-lines {cursor: text;min-height: 1px;}.CodeMirror pre.CodeMirror-line,.CodeMirror pre.CodeMirror-line-like {-moz-border-radius: 0; -webkit-border-radius: 0; border-radius: 0;border-width: 0;background: transparent;font-family: inherit;font-size: inherit;margin: 0;white-space: pre;word-wrap: normal;line-height: inherit;color: inherit;z-index: 2;position: relative;overflow: visible;-webkit-tap-highlight-color: transparent;-webkit-font-variant-ligatures: contextual;font-variant-ligatures: contextual;}.CodeMirror-wrap pre.CodeMirror-line,.CodeMirror-wrap pre.CodeMirror-line-like {word-wrap: break-word;white-space: pre-wrap;word-break: normal;}.CodeMirror-linebackground {position: absolute;left: 0; right: 0; top: 0; bottom: 0;z-index: 0;}.CodeMirror-linewidget {position: relative;z-index: 2;padding: 0.1px;}.CodeMirror-widget {}.CodeMirror-rtl pre { direction: rtl; }.CodeMirror-code {outline: none;}.CodeMirror-scroll,.CodeMirror-sizer,.CodeMirror-gutter,.CodeMirror-gutters,.CodeMirror-linenumber {-moz-box-sizing: content-box;box-sizing: content-box;}.CodeMirror-measure {position: absolute;width: 100%;height: 0;overflow: hidden;visibility: hidden;}.CodeMirror-cursor {position: absolute;pointer-events: none;}.CodeMirror-measure pre { position: static; }div.CodeMirror-cursors {visibility: hidden;position: relative;z-index: 3;}div.CodeMirror-dragcursors {visibility: visible;}.CodeMirror-focused div.CodeMirror-cursors {visibility: visible;}.CodeMirror-selected { background: #d9d9d9; }.CodeMirror-focused .CodeMirror-selected { background: #d7d4f0; }.CodeMirror-crosshair { cursor: crosshair; }.CodeMirror-line::selection, .CodeMirror-line > span::selection, .CodeMirror-line > span > span::selection { background: #d7d4f0; }.CodeMirror-line::-moz-selection, .CodeMirror-line > span::-moz-selection, .CodeMirror-line > span > span::-moz-selection { background: #d7d4f0; }.cm-searching {background-color: #ffa;background-color: rgba(255, 255, 0, .4);}.cm-force-border { padding-right: .1px; }@media print {.CodeMirror div.CodeMirror-cursors {visibility: hidden;}}.cm-tab-wrap-hack:after { content: ''; }span.CodeMirror-selectedtext { background: none; }
+.ide{border:1.5px solid var(--ink);border-radius:12px;overflow:hidden;margin:12px 0 0}
+.ide .CodeMirror{height:auto;min-height:320px;max-height:70vh;font:14px/1.55 "JetBrains Mono",monospace;background:var(--paper);color:var(--ink)}
+.ide .CodeMirror-scroll{min-height:320px;max-height:70vh}
+.ide .CodeMirror-gutters{background:light-dark(#f4f4ef,#202020);border-right:1px solid var(--line)}
+.ide .CodeMirror-linenumber{color:var(--mute)}.ide .CodeMirror-cursor{border-left:2px solid var(--ink)}
+.ide .CodeMirror-selected{background:light-dark(#fff3a8,#4a4320)!important}
+.ide .cm-keyword{color:light-dark(#8a1fa8,#d79bff)}.ide .cm-def{color:var(--blue);font-weight:600}.ide .cm-string{color:light-dark(#17773f,#7fdca2)}.ide .cm-number{color:light-dark(#b0480b,#ffb27a)}.ide .cm-comment{color:var(--mute);font-style:italic}.ide .cm-builtin,.ide .cm-variable-2{color:light-dark(#0d6f78,#7fd6de)}.ide .cm-operator{color:var(--ink)}
+.ide textarea.code{border:0;border-radius:0;min-height:320px}
+.tbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 10px;background:light-dark(#f4f4ef,#202020);border-top:1.5px solid var(--ink)}
+#tsum{font-weight:800}#tsum.ok{color:var(--good)}#tsum.no{color:var(--bad)}
+.tests{margin:10px 0}.tt{border-top:1px solid var(--line);padding:6px 0;font-size:14px}
+.tt b{display:inline-block;min-width:3.2em;font-size:12px;text-transform:none;border-radius:5px;padding:0 6px;margin-right:6px;text-align:center;color:#fff}
+.tt.pass b{background:var(--good)}.tt.fail b{background:var(--bad)}.tt.wait b{background:var(--mute)}
+.tt pre{margin:6px 0 0;font-size:13px;white-space:pre-wrap}
+.ex{width:100%;border-collapse:collapse;font-size:14px;margin:8px 0}.ex td,.ex th{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top;font-family:"JetBrains Mono",monospace}.ex th{font-family:inherit}
+.vz{max-width:100%;border-radius:10px;border:1px solid var(--line);margin-top:10px;background:#fff}
+.nudge{border-left:4px solid var(--blue);padding:4px 0 4px 12px;margin:10px 0}
+.card.ws{padding:0;overflow:hidden}.card.ws .meta{padding:12px 16px;margin:0;border-bottom:1.5px solid var(--line)}
+.wsf{display:block;width:100%;height:78vh;border:0;background:#fff}
+.card.ws.full{position:fixed;inset:0;z-index:50;border-radius:0;margin:0}.card.ws.full .wsf{height:calc(100vh - 60px)}
+.plan{margin:6px 0 0;padding-left:20px}.plan li{margin:4px 0}.plan .why{display:block}
+</style></head><body>
+<div class="wrap">
+  <header class="top"><h1>Study <mark>Loop</mark></h1><span id="stat"></span></header>
+  <main id="feed" aria-live="polite"></main>
+</div>
+<form class="composer" id="composer">
+  <div class="pkg" id="pkg" hidden></div>
+  <div class="cbar"><button type="button" class="btn ghost att" id="att" title="Import a list or file" aria-label="Import a list or file">+</button><input type="file" id="file" accept=".txt,.md,.csv,.tsv,.html,.htm,.json" hidden><textarea id="msg" rows="1" placeholder="Tell your teacher anything: “teach me DPO”, a paper link, a pasted blog, “too easy”, “skip”, “what am I learning?”"></textarea><button class="btn" id="send">Send</button></div>
+</form>
+<script type="text/plain" id="wsrc">
+importScripts('https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js');
+const ready=loadPyodide({indexURL:'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/'});
+onmessage=async e=>{const d=e.data;try{const py=await ready;
+  try{await py.loadPackagesFromImports(d.code+'\n'+d.tests.map(t=>t.code).join('\n')+'\n'+(d.viz||''))}catch(x){}
+  py.globals.set('USER',d.code);py.globals.set('TESTS_JSON',JSON.stringify(d.tests));py.globals.set('VIZ',d.viz||'');
+  postMessage({id:d.id,ok:true,res:JSON.parse(py.runPython(d.harness))})}catch(err){postMessage({id:d.id,ok:false,err:String(err&&err.message||err)})}};
+</script>
+<script type="text/plain" id="harness">
+import sys, io, json, time, traceback
+_res = {"setup": None, "tests": [], "stdout": "", "viz": None}
+_ns = {"__name__": "__main__"}
+_buf = io.StringIO(); _old = sys.stdout; sys.stdout = _buf
+try:
+    exec(compile(USER, "solution.py", "exec"), _ns)
+except BaseException:
+    _res["setup"] = traceback.format_exc()[-1500:]
+for _t in json.loads(TESTS_JSON):
+    _t0 = time.perf_counter()
+    if _res["setup"]:
+        _res["tests"].append({"name": _t["name"], "ok": False, "err": "Your code didn't run (see the error above).", "ms": 0}); continue
+    try:
+        exec(compile(_t["code"], "test", "exec"), dict(_ns))
+        _res["tests"].append({"name": _t["name"], "ok": True, "err": "", "ms": round((time.perf_counter() - _t0) * 1000, 1)})
+    except AssertionError as e:
+        _res["tests"].append({"name": _t["name"], "ok": False, "err": "AssertionError: " + (str(e) or "assert failed"), "ms": round((time.perf_counter() - _t0) * 1000, 1)})
+    except BaseException as e:
+        _tb = traceback.format_exc().strip().splitlines()
+        _res["tests"].append({"name": _t["name"], "ok": False, "err": "\n".join(_tb[-3:])[-700:], "ms": round((time.perf_counter() - _t0) * 1000, 1)})
+if VIZ and not _res["setup"]:
+    try:
+        import matplotlib; matplotlib.use("AGG")
+        import matplotlib.pyplot as plt, base64
+        plt.close("all"); exec(compile(VIZ, "viz", "exec"), dict(_ns))
+        _f = plt.gcf(); _f.set_size_inches(7.5, 3.6); _f.tight_layout()
+        _b = io.BytesIO(); _f.savefig(_b, format="png", dpi=110); _res["viz"] = base64.b64encode(_b.getvalue()).decode()
+    except BaseException as e:
+        _res["vizErr"] = type(e).__name__ + ": " + str(e)[:300]
+sys.stdout = _old
+_res["stdout"] = _buf.getvalue()[-4000:]
+json.dumps(_res)
+</script>
+<script>
+{
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const md=s=>String(s??'').split(/```[\w-]*\n?([\s\S]*?)```/).map((p,i)=>i%2?`<pre><code>${esc(p)}</code></pre>`:esc(p).replace(/`([^`]+)`/g,'<code>$1</code>').replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').split(/\n{2,}/).map(x=>x.trim()?`<p>${x.trim().replace(/\n/g,'<br>')}</p>`:'').join('')).join('');
+const rid=()=>Math.random().toString(36).slice(2,10);
+const FMT={code:'Hands-on code',build:'Paper build (PyTorch)',quiz:'Quiz',explain:'Explain it back',diagram:'Visual diagram',flashcards:'Flashcards',mock:'Timed mock interview',design:'Timed design round'};
+const DIMS=['correctness','reasoning','testing','performance','communication'];
+const D=864e5;
+let P={formatStats:{},log:[],learnerNote:'',done:0,day:'',today:0};
+let L={items:[],clusters:[],overlaps:[],summary:'',order:[]},T=[],cur=null,skipped=new Set(),sample=null,col=null,assets=null,downloads=null,mcp=null,canImg=false,pending=null,tick=null;
+const LS='studyloop.v1';
+const lsSave=()=>{try{localStorage.setItem(LS,JSON.stringify({P,T,L}))}catch(e){}};
+const chains={};
+function put(id,data){lsSave();if(!col)return;const body=JSON.parse(JSON.stringify(data));chains[id]=(chains[id]||Promise.resolve()).then(()=>col.doc(id).set(body)).catch(e=>{if(e&&e.code==='quota_exceeded')status('Storage is full: delete an old track.')})}
+const saveP=()=>put('profile',P),saveT=t=>put('t_'+t.id,t),saveL=()=>put('library',L);
+const feed=$('#feed');let cardEl=null;
+function say(html,who='t'){const d=document.createElement('div');d.className='msg '+who;d.innerHTML=html;feed.append(d);setBm();d.scrollIntoView({block:'end',behavior:'smooth'});return d}
+const status=m=>{if(m)say(`<p>${esc(m)}</p>`)};
+function newCard(){if(cardEl)cardEl.remove();cardEl=document.createElement('section');cardEl.className='card';feed.append(cardEl);const c=cardEl;setTimeout(()=>c.scrollIntoView({block:'start',behavior:'smooth'}),40)}
+
+/* ---------- bookmarklet (runs on the blog page, in your browser) ---------- */
+const BM=`(async()=>{const W=document,R=W.querySelector('article')||W.querySelector('main')||W.querySelector('.post-content,.entry-content,.post,#content')||W.body,C=R.cloneNode(true);C.querySelectorAll('.katex').forEach(k=>{const a=k.querySelector('annotation');if(a)k.replaceWith(' $'+a.textContent+'$ ')});C.querySelectorAll('mjx-container').forEach(k=>{const a=k.querySelector('mjx-assistive-mml math');k.replaceWith(' $'+(a?a.textContent:k.textContent)+'$ ')});C.querySelectorAll('script,style,noscript,nav,footer,iframe,form,button,aside,.MathJax_Preview').forEach(e=>e.remove());C.querySelectorAll('svg').forEach(s=>{if(s.querySelectorAll('*').length<6){s.remove();return}const i=W.createElement('img');i.src='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(new XMLSerializer().serializeToString(s))));i.alt=s.getAttribute('aria-label')||'diagram';s.replaceWith(i)});const ok=/^image\\/(png|jpeg|gif|webp|svg\\+xml)$/,L=[...R.querySelectorAll('img')],I=[...C.querySelectorAll('img')].slice(0,40),O=[],rd=b=>new Promise(r=>{const f=new FileReader;f.onload=()=>r(f.result);f.readAsDataURL(b)}),cv=(m,w,h)=>{const c=W.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(m,0,0);return c.toDataURL('image/jpeg',.9)};for(let i=0;i<I.length;i++){const m=I[i];let s=m.getAttribute('src')||'';if(!s.startsWith('data:'))s=m.dataset.src||m.currentSrc||m.src;m.setAttribute('data-sl',i);let d='';try{if(s.startsWith('data:image/svg'))d=s;else{const b=await(await fetch(s)).blob();if(b.size<9e6){if(ok.test(b.type))d=await rd(b);else{const x=await createImageBitmap(b);d=cv(x,x.width,x.height)}}}}catch(e){try{const l=L.find(x=>x.currentSrc===s||x.src===s);if(l&&l.naturalWidth)d=cv(l,l.naturalWidth,l.naturalHeight)}catch(e){}}O.push({alt:m.alt||'',src:s.slice(0,300),data:d})}const P=JSON.stringify({sl:1,url:location.href,title:W.title,html:C.innerHTML,images:O}),n=O.filter(x=>x.data).length,B=W.createElement('div');B.style='position:fixed;top:16px;right:16px;z-index:2147483647;background:#ffe14d;color:#141414;font:600 15px system-ui;padding:14px;border:2px solid #141414;border-radius:12px;box-shadow:0 8px 30px #0005;max-width:320px';B.innerHTML='<div style=margin-bottom:8px>Captured text + '+n+'/'+O.length+' images ('+Math.round(P.length/1024)+' KB)</div>';const b=W.createElement('button');b.textContent='Copy for Study Loop';b.style='font:700 15px system-ui;padding:10px 14px;border-radius:8px;border:0;background:#141414;color:#fff;cursor:pointer';b.onclick=async()=>{try{await navigator.clipboard.writeText(P);B.firstChild.textContent='Copied. Paste it into Study Loop.';setTimeout(()=>B.remove(),2500)}catch(e){const t=W.createElement('textarea');t.value=P;B.append(t);t.select();W.execCommand('copy');B.firstChild.textContent='Copied (fallback). Paste into Study Loop.'}};B.append(b);W.body.append(B)})()`;
+function setBm(){document.querySelectorAll('.bm:not([data-set])').forEach(a=>{a.dataset.set=1;a.href='javascript:'+encodeURIComponent(BM);a.addEventListener('click',e=>{e.preventDefault();status('Drag that yellow button to your bookmarks bar; clicking it here does nothing.')})})}
+const SETUP=`<p>To give me a full blog post with its images, drag this to your bookmarks bar once: <a class="bm" href="#" draggable="true">Send to Study Loop</a> (or <button type="button" class="btn ghost sm" data-a="copybm">copy its code</button> and save it as a bookmark's URL).</p><p class="why">On any post, click the bookmark, then the yellow Copy button it shows, and paste here. arXiv links I read directly through your alphaXiv connector.</p>`;
+
+/* ---------- learner context ---------- */
+function ctx(kind){const pb=P.playbook||{},pk=kind?(pb[kind]?{[kind]:pb[kind]}:{}):pb;return `LEARNER: CS student and AI research intern (LLM evaluation, agentic security) preparing for Research Engineer / ML Engineer interviews at frontier AI labs. Very short on time: every minute must build real skill. Priorities: ML coding and interview skills.
+${P.learnerNote?'WHAT WE KNOW ABOUT HOW THEY LEARN:\n'+P.learnerNote:''}
+${Object.keys(pk).length?'YOUR TEACHING PLAYBOOK (rules you wrote from past results; follow them):\n'+Object.entries(pk).map(([k,v])=>k+': '+v).join('\n'):''}
+${P.asks&&P.asks.length?'THINGS THE LEARNER HAS ASKED FOR (follow these):\n- '+P.asks.join('\n- '):''}
+${prefLine()}`}
+function prefLine(){const s=Object.entries(P.formatStats);const like=s.filter(([,v])=>v.up-v.down>=2).map(([k])=>k),hate=s.filter(([,v])=>v.down-v.up>=2).map(([k])=>k);return (like.length?`Formats that work for them: ${like.join(', ')}. `:'')+(hate.length?`Formats they dislike (avoid unless essential): ${hate.join(', ')}.`:'')}
+async function ask(p,tier,images){if(!sample)throw new Error('The tutor only runs when this page is open in Claude.');let last;
+  for(let i=0;i<2;i++){try{const o={modelTier:tier||'default',cache:false};if(images&&images.length&&canImg)o.images=images;const r=await sample(p,o);const t=r.text,a=t.indexOf('{'),b=t.lastIndexOf('}');return JSON.parse(t.slice(a,b+1))}catch(e){last=e;if(e&&(e.code==='rate_limited'||e.code==='not_granted'))break}}throw last}
+const figBlob=f=>fetch('/_blob/'+f.id).then(r=>r.ok?r.blob():null).catch(()=>null);
+
+/* ---------- ingesting sources ---------- */
+const OKT=new Set('P H1 H2 H3 H4 H5 H6 UL OL LI PRE CODE BLOCKQUOTE EM STRONG B I A IMG FIGURE FIGCAPTION TABLE THEAD TBODY TR TD TH SUP SUB BR HR DIV SECTION'.split(' '));
+const DROP=new Set('SCRIPT STYLE NOSCRIPT IFRAME OBJECT EMBED FORM INPUT BUTTON SVG TEMPLATE'.split(' '));
+function clean(node,fig){let h='';for(const n of node.childNodes){
+  if(n.nodeType===3){h+=esc(n.textContent);continue}if(n.nodeType!==1)continue;const t=n.tagName.toUpperCase();
+  if(DROP.has(t))continue;if(!OKT.has(t)){h+=clean(n,fig);continue}
+  if(t==='IMG'){const f=fig[n.getAttribute('data-sl')];h+=f?`<figure><img src="/_blob/${esc(f.id)}" alt="${esc(f.alt)}" loading="lazy"><figcaption>Figure ${f.n}${f.alt?': '+esc(f.alt):''}</figcaption></figure>`:(n.getAttribute('alt')?`<p class="why">[Image not captured: ${esc(n.getAttribute('alt'))}]</p>`:'');continue}
+  if(t==='FIGURE'&&n.querySelector('img')){h+=clean(n,fig);continue}
+  if(t==='FIGCAPTION'){h+=`<p class="why">${clean(n,fig)}</p>`;continue}
+  if(t==='A'){const u=n.getAttribute('href')||'';h+=/^https?:/i.test(u)?`<a href="${esc(u)}" target="_blank" rel="noopener">${clean(n,fig)}</a>`:clean(n,fig);continue}
+  if(t==='BR'||t==='HR'){h+=`<${t.toLowerCase()}>`;continue}
+  const g=t==='SECTION'?'div':t.toLowerCase();h+=`<${g}>${clean(n,fig)}</${g}>`}return h}
+function toText(html){return html.replace(/<figure>[\s\S]*?<figcaption>([\s\S]*?)<\/figcaption><\/figure>/g,'\n[$1]\n').replace(/<\/(p|h\d|li|pre|tr|div|blockquote)>/g,'\n').replace(/<br>/g,'\n').replace(/<[^>]+>/g,'').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&amp;/g,'&').replace(/\n{3,}/g,'\n\n').trim()}
+function dataToBlob(d){const m=/^data:([^;,]+)(;base64)?,(.*)$/s.exec(d);if(!m)return null;const raw=m[2]?atob(m[3]):decodeURIComponent(m[3]);const u=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)u[i]=raw.charCodeAt(i);return new Blob([u],{type:m[1]})}
+async function ingestPackage(pkg,say){
+  const doc=new DOMParser().parseFromString(pkg.html||'','text/html');const fig={},figs=[];let n=0,failed=0;
+  const imgs=(pkg.images||[]);
+  for(let i=0;i<imgs.length;i++){const im=imgs[i];if(!im.data||!assets){failed++;continue}
+    say(`Saving image ${i+1} of ${imgs.length}…`);
+    try{const b=dataToBlob(im.data);if(!b||b.size<200){failed++;continue}const r=await assets.upload(b,{type:b.type});fig[i]={id:r.id,alt:im.alt,n:++n};figs.push(fig[i])}catch(e){failed++;if(e&&e.code==='rate_limited')await new Promise(r=>setTimeout(r,1500))}}
+  const html=clean(doc.body,fig);let htmlId=null;
+  if(assets){try{htmlId=(await assets.upload(new Blob([html],{type:'text/plain'}),{type:'text/plain'})).id}catch(e){}}
+  return {title:pkg.title,url:pkg.url,text:toText(html),html:htmlId?null:(html.length<150000?html:null),htmlId,figs,failed};
+}
+async function arxivText(url){if(!mcp)return null;
+  try{const r=await mcp.callTool('alphaXiv','get_paper_content',{url,fullText:true});const p=r&&r.payload!==undefined?r.payload:r;
+    if(typeof p==='string')return p;if(p&&Array.isArray(p.content))return p.content.map(c=>c.text||'').join('\n');return JSON.stringify(p)}catch(e){return null}}
+
+/* ---------- planning ---------- */
+$('#msg').addEventListener('paste',e=>{const t=e.clipboardData&&e.clipboardData.getData('text')||'';
+  if(t.startsWith('{"sl":1')){e.preventDefault();try{pending=JSON.parse(t);showPending()}catch(err){status('That capture looks incomplete. Copy it again.')}}});
+function showPending(){const b=$('#pkg');if(!pending){b.hidden=true;return}const n=(pending.images||[]).filter(x=>x.data).length;
+  b.hidden=false;b.innerHTML=`<span>Ready: <b>${esc(pending.title||pending.url)}</b> · ${n} image${n===1?'':'s'}</span><button class="btn ghost sm" data-a="unpend">Remove</button>`}
+async function addTrack(txt){
+  txt=(txt||'').trim();if(!txt&&!pending)return;
+  const w=say('<p class="dots">On it</p>'),prog=m=>{w.innerHTML=`<p class="dots">${esc(m.replace(/…$/,''))}</p>`};let needSetup=false;
+  try{
+    let src={text:txt,title:'',url:'',figs:[],htmlId:null,html:null},note='';
+    if(pending){prog('Saving the article');const pk=pending;pending=null;showPending();src=await ingestPackage(pk,prog);if(txt)src.text=txt+'\n\n'+src.text;if(src.failed)note=`${src.failed} image(s) couldn't be captured; their captions are kept.`}
+    else{const m=txt.match(/^https?:\/\/\S+$/);
+      if(m&&/arxiv\.org|alphaxiv\.org/.test(txt)){prog('Reading the paper');const p=await arxivText(txt);if(p){src.text=p;src.url=txt}else note='I couldn’t pull the paper text (turn on the alphaXiv connector), so I planned from what I know of it.'}
+      else if(m){src.url=txt;note='I can’t open links myself, so this plan comes from the topic only. Capture the post with the bookmark below and I’ll teach from the actual article and its figures.';needSetup=true}}
+    prog('Planning how to teach this');
+    const figList=src.figs.map(f=>`Figure ${f.n}: ${f.alt||'(no caption)'}`).join('\n');
+    const imgs=canImg?(await Promise.all(src.figs.slice(0,4).map(figBlob))).filter(Boolean):[];
+    const r=await ask(`${ctx()}
+TASK: Design a mastery track for what the learner wants to learn.
+SOURCE${src.url?' ('+src.url+')':''}:
+<<<${src.text.slice(0,40000)}>>>
+${figList?'FIGURES IN THE SOURCE (first ones attached as images):\n'+figList:''}
+Rules:
+- Choose the evidence-based method that fits THIS kind of knowledge: deliberate practice against tests for ML coding; worked example then faded practice for algorithms; retrieval practice + spaced repetition for facts and concepts; elaboration + dual coding (figures, diagrams) + explain-back for blog/paper ideas; timed mock interviews scored on a rubric for interview skills.
+- If the source is a research paper or describes an architecture/training method, include at least one "build" unit: reproduce its core architecture or pipeline end to end in plain PyTorch at a tiny CPU-friendly scale.
+- 4 to 8 units, each about 10-15 minutes (build units may be 45-60), ordered for mastery, each with ONE testable goal.
+- format per unit, one of: ${Object.keys(FMT).join(', ')}. Mix formats where it helps; ML coding should be mostly code/build.
+- "figure": the number of the source figure that unit should be taught around, or 0.
+- If the source is just a URL you don't know well, plan from its topic and set needsText true.
+Return ONLY JSON: {"title":"short","kind":"ml-coding|paper|interview-coding|interview-ml|behavioral|system-design|blog|concept","priority":3,"method":"one sentence: method and why it fits","needsText":false,"units":[{"title":"","goal":"","format":"","figure":0}]}
+priority: 3 for ML coding, papers to implement, or interview prep; 2 for core ML knowledge; 1 for everything else.`,'default',imgs);
+    const t={id:rid(),title:r.title||src.title||txt.slice(0,40),kind:r.kind||'concept',priority:+r.priority||2,method:r.method||'',url:src.url||'',source:src.text.slice(0,60000),figs:src.figs,htmlId:src.htmlId,html:src.html,created:Date.now(),touched:0,
+      units:(r.units||[]).map(u=>({id:rid(),title:u.title,goal:u.goal,format:FMT[u.format]?u.format:'quiz',figure:+u.figure||0,status:'new',due:0,interval:0,reps:0}))};
+    if(!t.units.length)throw new Error('No units came back. Try rephrasing.');
+    T.push(t);saveT(t);
+    if(r.needsText&&!note){note='I planned this from the topic only. Capture the article with the bookmark and I’ll tie the exercises to it.';needSetup=true}
+    w.innerHTML=`<p><b>${esc(t.title)}</b>: your straight-shot plan. ${esc(t.method)}</p><ol class="plan">${t.units.map(u=>`<li><b>${esc(u.title)}</b><span class="why">${esc(u.goal)}</span></li>`).join('')}</ol><p class="why">I’m building a workspace for it now. Reviews come back on schedule after each milestone.</p>${t.figs.length?`<p class="why">Saved the article with ${t.figs.length} figure${t.figs.length>1?'s':''}. Say “read it” anytime.</p>`:''}${note?`<p class="why">${esc(note)}</p>`:''}`;
+    if(needSetup)say(SETUP);renderStat();openEnv(t);return t;
+  }catch(e){w.innerHTML=`<p>${esc(e.message||'Planning failed. Try again.')}</p>`}
+}
+
+/* ---------- scheduling ---------- */
+function pick(onlyTrack){
+  const now=Date.now(),due=[],fresh=[];
+  for(const t of T){if(onlyTrack&&t.id!==onlyTrack)continue;
+    for(const u of t.units){if(skipped.has(u.id))continue;if(u.status!=='new'&&u.due<=now)due.push([t,u])}
+    const n=t.units.find(u=>u.status==='new'&&!skipped.has(u.id));if(n)fresh.push([t,n])}
+  due.sort((a,b)=>a[1].due-b[1].due);if(due.length)return due[0];
+  fresh.sort((a,b)=>(a[0].touched-a[0].priority*6*36e5)-(b[0].touched-b[0].priority*6*36e5));
+  return fresh[0]||null;
+}
+function next(onlyTrack){const p=pick(onlyTrack);if(p&&p[1].status==='new'&&sample&&!(cur&&cur.ws===p[0])){return openEnv(p[0])}if(!p){if(skipped.size&&!onlyTrack){skipped.clear();const q=pick();if(q)return load(q)}clearInterval(tick);cur=null;if(cardEl){cardEl.remove();cardEl=null}
+  say(T.length?`<p>That’s everything due for now. Reviews come back on schedule. Want more? Say “keep going”, or give me something new.</p>`:`<p>Give me something to learn and I’ll start.</p>`);renderStat();return}load(p)}
+function switchFmt(v){const {t,u}=cur,f=u.format,st=P.formatStats;if(v===f)return;(st[f]=st[f]||{up:0,down:0}).down++;(st[v]=st[v]||{up:0,down:0}).up++;u.format=v;saveP();saveT(t);load([t,u])}
+function focus(t){skipped.clear();const p=pick(t.id)||[t,[...t.units].sort((x,y)=>x.due-y.due)[0]];load(p)}
+function openReader(t){clearInterval(tick);cur={reader:t};newCard();renderCard()}
+
+const SPEC={
+ code:`{"title":"","primer":"","brief":"markdown: what to implement, constraints, and why it matters in real ML / interview work","examples":[{"input":"","output":"","note":""}],"starter":"python: imports, function signatures with type hints and docstrings, bodies raise NotImplementedError. numpy allowed; nothing else outside the standard library","reference":"complete, correct, idiomatic solution with the SAME signatures (hidden from the learner)","tests":[{"name":"short descriptive name","code":"python that calls the learner's functions and uses assert with an informative message, e.g. assert got == want, f'expected {want}, got {got}'. numpy: np.allclose with tolerances. Each test independent and under 1 s.","hidden":false}],"viz":"optional matplotlib python that calls the learner's functions and plots something that builds intuition (loss curve, attention heatmap, decision boundary, timing vs n); '' if a plot adds nothing","hints":["nudge","stronger nudge","near-solution"],"takeaway":"one-line insight"}
+ Write 6-10 tests: the official/canonical examples, edge cases that commonly break solutions (empty, single element, duplicates, negatives, large n for complexity, numerical stability), 1-2 marked hidden.`,
+ build:`{"title":"","primer":"","paper":"exact paper title, authors, venue/year (or '' if not a paper)","brief":"markdown: what to build, which part of the paper/source it reproduces, what done looks like","starter":"ONE python file. Header comment: project, paper, goal, tiny CPU config, run command. Imports (torch, torch.nn, torch.nn.functional, etc.). A '# ===== STUDENT CODE STARTS HERE =====' banner. Signatures for every model component class (__init__ and forward only) and pipeline functions get_dataloaders, train_one_epoch, evaluate, run_pipeline, each body ONLY raise NotImplementedError('TODO'). No hints, formulas or pseudocode in the student section. A '# ===== STUDENT CODE ENDS HERE / TESTS BELOW =====' banner. Executable tests: forward-shape test on the full model at tiny config, overfit-one-batch test (loss must drop by a clear margin), one check of a property specific to this paper. End with print('ALL TESTS PASSED'). Plain PyTorch only: no HuggingFace, no Lightning.","hints":["","",""],"takeaway":""}`,
+ quiz:`{"title":"","primer":"","questions":[{"q":"","choices":["","","",""],"answer":0,"why":""}]} with 5 questions that require recall or application, not trivia`,
+ explain:`{"title":"","primer":"","prompt":"what to explain in their own words, as if to a sharp peer","keyPoints":["4 to 6 points a complete explanation must cover"]}`,
+ diagram:`{"title":"","primer":"","mermaid":"valid mermaid code (flowchart TD or sequenceDiagram), short plain labels in double quotes, no parentheses or special characters inside labels","caption":"2-3 sentences","questions":[{"q":"","a":""}]} with 3 questions answered by reading the diagram`,
+ flashcards:`{"title":"","primer":"","cards":[{"front":"","back":""}]} with 6-8 atomic cards`,
+ mock:`{"title":"","primer":"","round":"e.g. ML fundamentals, ML coding, PyTorch implementation, debugging + performance, paper defense, agent evals, behavioral","minutes":15,"question":"exactly as an interviewer would ask it","context":"which round and what kind of company","deliverables":["what the answer must contain"],"rubric":{"correctness":"","reasoning":"","testing":"","performance":"","communication":""},"followups":["","",""]}`,
+ design:`{"title":"","primer":"","round":"ML systems design","minutes":25,"question":"a system or ML system design question","context":"","deliverables":[""],"rubric":{"correctness":"","reasoning":"","testing":"","performance":"","communication":""},"followups":["","",""]}`};
+
+async function load([t,u]){
+  clearInterval(tick);clearTimeout(runTimer);runSeq++;cm=null;cur={t,u,item:null,score:null,rating:null,alt:null};newCard();render();
+  try{
+    const prog=m=>{if(cur&&cur.u===u){cur.stage=m;renderCard()}};
+    const f=u.figure&&t.figs?t.figs.find(x=>x.n===u.figure):null;
+    const repo=(u.format==='code'||u.format==='build')?await research(t,prog):null;
+    prog(u.format==='code'?'Writing the exercise, tests and a reference solution':'Writing your '+FMT[u.format].toLowerCase());
+    const imgs=f&&canImg?[await figBlob(f)].filter(Boolean):[];
+    const item=await ask(`${ctx(t.kind)}
+TRACK: ${t.title} (${t.kind}). Method: ${t.method}
+UNIT: ${u.title}. Goal: ${u.goal}
+${f?`Teach around Figure ${f.n} of the source${imgs.length?' (attached)':''}: ${f.alt}. The learner sees this figure above the exercise; refer to it.`:''}
+${u.reps?`This is spaced review #${u.reps}. Make a short (about 5 min) retrieval check that tests the goal from a NEW angle. Set "primer" to "".`:`First exposure. "primer": teach the core idea in at most 150 words of markdown, then the exercise makes them do the work.`}
+SOURCE MATERIAL (excerpt):
+<<<${t.source.slice(0,24000)}>>>
+${repo?`OFFICIAL CODE (${repo.url}), use it to ground signatures, shapes and expected behaviour in tests:\n<<<${repo.text}>>>`:''}
+${u.format==='code'?'If this is a known problem (e.g. LeetCode, a classic ML-from-scratch exercise), use its real examples and the edge cases people commonly fail.':''}
+Produce a "${u.format}" exercise. Return ONLY JSON: ${SPEC[u.format]}`,'default',imgs);
+    if(u.format==='code')await verify(item,prog);
+    if(cur&&cur.u===u){cur.item=item;cur.fig=f;cur.start=Date.now();cur.runs=0;cur.streak={};render()}
+  }catch(e){if(cur&&cur.u===u){cur.err=e.message||'Could not build this exercise.';render()}}
+}
+
+/* ---------- finishing + learning about the learner ---------- */
+function finish(note){
+  clearInterval(tick);
+  const {t,u,rating,alt}=cur,now=Date.now(),f=u.format;
+  if(rating==='again'){u.interval=0;u.due=now+10*60e3}
+  else{u.interval=rating==='hard'?Math.max(1,(u.interval||1)*1.2):rating==='good'?(u.interval?u.interval*2.5:2):(u.interval?u.interval*3.5:4);u.due=now+u.interval*D}
+  u.status='learning';u.reps++;u.last={rating,score:cur.score,at:now};t.touched=now;
+  if(alt){const st=P.formatStats[f]=P.formatStats[f]||{up:0,down:0};
+    if(alt==='keep')st.up++;else{st.down++;const s2=P.formatStats[alt]=P.formatStats[alt]||{up:0,down:0};s2.up++;t.units.forEach(x=>{if(x.status==='new'&&x.format===f)x.format=alt});u.format=alt}}
+  P.log.push({at:now,kind:t.kind,unit:u.title,fmt:f,alt:alt||'',rating,score:cur.score,dims:cur.dims||null,mins:Math.round((now-(cur.start||now))/6e4),note:note||''});P.log=P.log.slice(-60);
+  const day=new Date().toDateString();if(P.day!==day){P.day=day;P.today=0}P.today++;P.done++;
+  saveT(t);saveP();if(P.log.length%(P.log.length<15?3:5)===0||note)refreshModel();
+  const lbl={again:'not yet',hard:'shaky',good:'got it',easy:'easy'}[rating],d=Math.round(u.interval);
+  if(cardEl){const s=document.createElement('div');s.className='msg done';s.textContent=`Done: ${cur.item&&cur.item.title||u.title} · ${lbl}${cur.score!=null?' · '+cur.score+'/100':''}${alt&&alt!=='keep'?' · switching to '+FMT[alt].toLowerCase():''} · back ${rating==='again'?'in 10 min':'in '+d+' day'+(d===1?'':'s')}`;cardEl.replaceWith(s);cardEl=null}
+  next();
+}
+async function refreshModel(){
+  try{const kinds=[...new Set(P.log.slice(-25).map(x=>x.kind).filter(Boolean))];
+  const r=await ask(`You are a tutor improving your own teaching. You keep (1) a short model of how this learner learns and (2) a playbook: per kind of material, the concrete rules you follow when planning and writing exercises. Rewrite both from the evidence.
+Current learner model: ${P.learnerNote||'(none yet)'}
+Current playbook: ${JSON.stringify(P.playbook||{})}
+Learner's explicit requests: ${JSON.stringify(P.asks||[])}
+Format stats (up = worked / chosen instead, down = rejected): ${JSON.stringify(P.formatStats)}
+Recent sessions (kind, fmt, alt = format they'd prefer, rating = recall right after, score, interview rubric dims 1-4, minutes, note): ${JSON.stringify(P.log.slice(-25))}
+Spaced-review outcomes (unit, reps, last rating): ${JSON.stringify(T.flatMap(t=>t.units.filter(u=>u.reps>1).map(u=>({kind:t.kind,fmt:u.format,reps:u.reps,last:u.last&&u.last.rating}))).slice(-30))}
+Rules: keep what the evidence supports, change what is not working (low scores, "not yet" ratings, rejected formats, overtime), and treat explicit requests as hard constraints. Only update playbook entries for kinds with evidence: ${JSON.stringify(kinds)}. Each entry: at most 3 short imperative rules (formats, length, difficulty, what to emphasise).
+Return ONLY JSON: {"note":"3-5 short markdown bullet lines about the learner. No praise.","playbook":{"<kind>":"rules"},"changed":"one plain sentence telling the learner what you changed in how you teach them, or '' if nothing meaningful changed"}`,'default');
+  if(r.note)P.learnerNote=r.note;
+  if(r.playbook&&typeof r.playbook==='object'){P.playbook=Object.assign(P.playbook||{},r.playbook);P.pbHist=[...(P.pbHist||[]),{at:Date.now(),changed:r.changed||''}].slice(-20)}
+  saveP();if(r.changed)say(`<p class="why">I adjusted how I teach you: ${esc(r.changed)}</p>`)}catch(e){}
+}
+
+/* ---------- runners + exports ---------- */
+let pyP=null,mmP=null;
+function script(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s)})}
+function loadPy(){if(!pyP)pyP=script('https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js').then(()=>loadPyodide({indexURL:'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/'})).catch(e=>{pyP=null;throw e});return pyP}
+async function runPy(code){const py=await loadPy(),out=[];py.setStdout({batched:s=>out.push(s)});py.setStderr({batched:s=>out.push(s)});
+  try{await py.loadPackagesFromImports(code);await py.runPythonAsync(code,{globals:py.globals.get('dict')()})}catch(e){out.push(String(e.message||e).trim().split('\n').slice(-8).join('\n'))}return out.join('\n')||'(no output)'}
+function loadMM(){if(!mmP)mmP=script('https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js').then(()=>{const th=document.documentElement.dataset.theme,dark=th==='dark'||(!th&&matchMedia('(prefers-color-scheme: dark)').matches);mermaid.initialize({startOnLoad:false,theme:dark?'dark':'neutral',securityLevel:'strict'});return mermaid}).catch(e=>{mmP=null;throw e});return mmP}
+/* background test runner: Pyodide in a Web Worker, killed and restarted on timeout */
+const HARNESS=document.getElementById('harness').textContent;
+let W=null,wSeq=0,wPend={},wWarm=false,useMain=false;
+function worker(){if(W)return W;W=new Worker(URL.createObjectURL(new Blob([document.getElementById('wsrc').textContent],{type:'text/javascript'})));
+  W.onmessage=e=>{const p=wPend[e.data.id];if(!p)return;delete wPend[e.data.id];clearTimeout(p.to);if(e.data.ok){wWarm=true;p.res(e.data.res)}else p.rej(new Error(e.data.err))};
+  W.onerror=e=>{e.preventDefault&&e.preventDefault();if(!wWarm)useMain=true;for(const k in wPend){clearTimeout(wPend[k].to);wPend[k].rej(new Error('runner-crash'));delete wPend[k]}try{W.terminate()}catch(x){}W=null};return W}
+async function runMain(code,tests,viz){const py=await loadPy();try{await py.loadPackagesFromImports(code+'\n'+tests.map(t=>t.code).join('\n')+'\n'+(viz||''))}catch(x){}
+  py.globals.set('USER',code);py.globals.set('TESTS_JSON',JSON.stringify(tests));py.globals.set('VIZ',viz||'');return JSON.parse(py.runPython(HARNESS))}
+async function runTests(code,tests,viz){const ts=(tests||[]).map(t=>({name:String(t.name||'test'),code:String(t.code||'')}));
+  if(useMain)return runMain(code,ts,viz);
+  try{return await new Promise((res,rej)=>{let w;try{w=worker()}catch(x){useMain=true;return rej(new Error('runner-crash'))}const id=++wSeq,lim=wWarm?15000:90000;
+    const to=setTimeout(()=>{delete wPend[id];try{W.terminate()}catch(x){}W=null;rej(new Error(`Stopped after ${lim/1000}s: an infinite loop or very slow code? The runner restarted.`))},lim);
+    wPend[id]={res,rej,to};w.postMessage({id,code,tests:ts,viz:viz||'',harness:HARNESS})})}
+  catch(e){if(e.message==='runner-crash'&&useMain)return runMain(code,ts,viz);throw e}}
+let cmP=null;
+function loadCM(){if(!cmP)cmP=script('https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js').then(()=>script('https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js')).then(()=>window.CodeMirror).catch(e=>{cmP=null;throw e});return cmP}
+/* research: pull the paper's official code (via alphaXiv) once per track */
+async function research(t,prog){
+  if(t.repo!==undefined||!mcp)return t.repo||null;
+  const m=(t.source+' '+(t.url||'')).match(/https?:\/\/github\.com\/[\w.-]+\/[\w.-]+/);
+  if(!m){t.repo=null;return null}
+  prog('Reading the official code on GitHub');
+  try{const r=await mcp.callTool('alphaXiv','read_files_from_github_repository',{githubUrl:m[0].replace(/\.git$|[.)]+$/,''),path:'/'});const p=r&&r.payload!==undefined?r.payload:r;
+    const txt=typeof p==='string'?p:(p&&Array.isArray(p.content)?p.content.map(c=>c.text||'').join('\n'):JSON.stringify(p));t.repo={url:m[0],text:String(txt).slice(0,14000)}}catch(e){t.repo=null}
+  saveT(t);return t.repo}
+/* verify: run the tests against a hidden reference solution; fix or drop tests that disagree */
+async function verify(item,prog){
+  if(!item.reference||!Array.isArray(item.tests)||!item.tests.length)return item;
+  prog('Checking the tests against a reference solution');
+  let r;try{r=await runTests(item.reference,item.tests,'')}catch(e){item.verifyNote='Tests not verified: '+e.message;return item}
+  const bad=()=>r.setup?item.tests.map(t=>({name:t.name,err:r.setup})):item.tests.map((t,i)=>({name:t.name,err:r.tests[i]&&!r.tests[i].ok?r.tests[i].err:null})).filter(x=>x.err);
+  let b=bad();
+  if(b.length){prog('Fixing tests that disagree with the reference');
+    try{const fx=await ask(`These unit tests fail against the reference solution of a coding exercise. Decide which side is wrong and fix it.
+REFERENCE:\n${item.reference}\nTESTS:\n${JSON.stringify(item.tests)}\nFAILURES:\n${JSON.stringify(b)}
+Return ONLY JSON: {"reference":"corrected full reference","tests":[{"name":"","code":"","hidden":false}]} with the FULL corrected test list.`,'default');
+      if(fx.reference)item.reference=fx.reference;if(Array.isArray(fx.tests)&&fx.tests.length)item.tests=fx.tests;r=await runTests(item.reference,item.tests,'')}catch(e){}
+    const keep=r.setup?[]:item.tests.filter((t,i)=>r.tests[i]&&r.tests[i].ok);
+    if(keep.length>=2){item.dropped=item.tests.length-keep.length;item.tests=keep}else{item.verifyNote='Some tests may be imperfect; I could not fully verify them.';return item}}
+  item.verified=item.tests.length;return item}
+function notebook(title,brief,code){const src=s=>{const l=String(s).split('\n');return l.map((x,i)=>i<l.length-1?x+'\n':x)};
+  return JSON.stringify({nbformat:4,nbformat_minor:5,metadata:{colab:{name:title},kernelspec:{display_name:'Python 3',language:'python',name:'python3'}},cells:[
+   {cell_type:'markdown',metadata:{},source:src(`# ${title}\n\n${brief}\n\nExported from Study Loop. Runtime → Change runtime type → GPU if needed, then Run all.`)},
+   {cell_type:'code',metadata:{},execution_count:null,outputs:[],source:src("import torch\nprint('PyTorch', torch.__version__, '| device:', 'cuda' if torch.cuda.is_available() else 'cpu')")},
+   {cell_type:'code',metadata:{},execution_count:null,outputs:[],source:src(code)}]},null,1)}
+async function grade(what,payload,dims){return ask(`${ctx()}
+Grade the learner's ${what}. Be strict, specific and brief; this is for mastery, not encouragement.
+${payload}
+Return ONLY JSON: {"score":0,"verdict":"one line",${dims?'"dims":{"correctness":1,"reasoning":1,"testing":1,"performance":1,"communication":1},':''}"good":[""],"gaps":[""],"better":"concise model answer or fix, markdown"}${dims?'\ndims are 1 (weak) to 4 (hire-level) against the rubric.':''}`)}
+const resHTML=r=>`<div class="res"><div class="score">${esc(r.score)}<small style="font-size:15px;font-weight:400"> /100</small></div><p><b>${esc(r.verdict)}</b></p>
+ ${r.dims?`<div class="dims">${DIMS.map(k=>`<span>${k[0].toUpperCase()+k.slice(1)}</span><div class="bar"><i style="width:${(+r.dims[k]||0)*25}%"></i></div><span>${esc(r.dims[k]??'–')}/4</span>`).join('')}</div>`:''}
+ ${r.good&&r.good.length?`<h3>Solid</h3><ul>${r.good.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}${r.gaps&&r.gaps.length?`<h3>Gaps</h3><ul>${r.gaps.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}${r.better?`<details><summary>Stronger version</summary>${md(r.better)}</details>`:''}</div>`;
+
+/* ---------- rendering ---------- */
+function body(f,it){
+  if(f==='code'){const ex=(it.examples||[]).filter(x=>x&&(x.input||x.output));const vis=(it.tests||[]).length;
+   return `${md(it.brief)}${ex.length?`<table class="ex"><tr><th>Input</th><th>Output</th></tr>${ex.map(x=>`<tr><td>${esc(x.input)}</td><td>${esc(x.output)}${x.note?`<div class="why">${esc(x.note)}</div>`:''}</td></tr>`).join('')}</table>`:''}
+   <div class="ide"><div id="cm"></div><div class="tbar"><span id="tsum">${vis} tests ready</span><span class="why">${it.verified?`verified against a reference solution · `:''}run as you type · Ctrl/Cmd+Enter</span>
+   <span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn sm" data-a="runT">Run</button><button type="button" class="btn ghost sm" data-a="hint">Hint</button><button type="button" class="btn ghost sm" data-a="review">Review</button><button type="button" class="btn ghost sm" data-a="sol">Solution</button>${downloads?`<button type="button" class="btn ghost sm" data-a="nb">Colab</button>`:''}</span></div></div>
+   ${it.verifyNote?`<p class="why">${esc(it.verifyNote)}</p>`:''}<div id="hints"></div><div class="tests" id="tlist">${(it.tests||[]).map(t=>`<div class="tt wait"><b>…</b>${t.hidden?'Hidden test':esc(t.name)}</div>`).join('')}</div><pre id="out"></pre><div id="vz"></div><div id="rev"></div>`}
+  if(f==='build'){const isB=true;const code=isB?it.starter:it.starter;
+   return `${it.paper?`<p class="why">Paper: ${esc(it.paper)}</p>`:''}${md(it.brief)}<textarea class="code" id="ed" spellcheck="false">${esc(code)}</textarea>
+   <div class="row">${isB?'':`<button class="btn" data-a="run">Run tests</button>`}<button class="btn${isB?'':' ghost'}" data-a="review">Review my code</button>${downloads?`<button class="btn ghost" data-a="nb">Download for Colab</button>`:''}<a class="btn ghost" href="https://colab.research.google.com/#create=true" target="_blank" rel="noopener">Open Colab</a><button class="btn ghost" data-a="copy">Copy code</button><button class="btn ghost" data-a="hint">Hint</button></div>
+   ${isB?'<p class="why">PyTorch doesn\'t run in this page: run it in Colab (download the notebook, then upload it there) or locally with <code>python assignment.py</code>, and paste the output below for review.</p><textarea id="runout" rows="3" placeholder="Paste your run output here (optional)"></textarea>':''}
+   <div id="hints"></div><pre id="out"></pre><div id="rev"></div>${it.tests?`<details><summary>Tests</summary><pre><code>${esc(it.tests)}</code></pre></details>`:''}`}
+  if(f==='quiz')return (it.questions||[]).map((q,i)=>`<div class="q"><p><b>${i+1}.</b> ${md(q.q).replace(/^<p>|<\/p>$/g,'')}</p>${(q.choices||[]).map((c,j)=>`<button class="opt" data-a="ans" data-q="${i}" data-c="${j}">${esc(c)}</button>`).join('')}<div class="why" id="why${i}"></div></div>`).join('');
+  if(f==='explain')return `${md(it.prompt)}<textarea id="ans" rows="8" placeholder="Explain it in your own words. No looking."></textarea><div class="row"><button class="btn" data-a="gradeX">Check my explanation</button></div><div id="rev"></div>`;
+  if(f==='diagram')return `<div class="mermaid-box" id="mm">Drawing…</div>${md(it.caption)}${(it.questions||[]).map(q=>`<div class="q"><p>${esc(q.q)}</p><details><summary>Answer</summary>${md(q.a)}</details></div>`).join('')}`;
+  if(f==='flashcards')return `<div id="fc"></div>`;
+  const m=+it.minutes||(f==='design'?25:15);
+  return `<p class="why">${esc(it.round||'')}${it.round?' · ':''}${esc(it.context)}</p><div class="primer" style="font-size:19px">${md(it.question)}</div>
+   ${it.deliverables&&it.deliverables.length?`<details><summary>What a complete answer includes</summary><ul>${it.deliverables.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></details>`:''}
+   <div class="row" style="align-items:center"><div class="timer" id="tm">${m}:00</div><button class="btn ghost sm" data-a="timer" data-m="${m}">Start ${m}-min timer</button></div>
+   <textarea id="ans" rows="10" placeholder="Answer as you would out loud: assumptions first, then structure."></textarea><div class="row"><button class="btn" data-a="gradeM">Get scored</button></div><div id="rev"></div>`;
+}
+function altFormats(f){const pref={'ml-coding':['build','explain','quiz'],paper:['build','diagram','explain'],blog:['diagram','explain','flashcards'],'interview-coding':['code','mock','explain'],'interview-ml':['mock','flashcards','explain'],behavioral:['mock','explain','flashcards'],'system-design':['design','diagram','mock']}[cur.t.kind]||['code','diagram','quiz'];
+  const liked=Object.entries(P.formatStats).sort((a,b)=>(b[1].up-b[1].down)-(a[1].up-a[1].down)).map(x=>x[0]);return [...new Set([...liked.slice(0,1),...pref,'flashcards','quiz'])].filter(x=>x!==f&&FMT[x]).slice(0,3)}
+function fbHTML(f){return `<div class="fb"><div class="row"><span class="why" style="align-self:center">This style?</span><button type="button" class="pick${cur.alt==='keep'?' on':''}" data-a="alt" data-v="keep">Works for me</button>${altFormats(f).map(k=>`<button type="button" class="pick${cur.alt===k?' on':''}" data-a="alt" data-v="${k}">${FMT[k]} next time</button>`).join('')}</div>
+ <div class="row"><span class="why" style="align-self:center">When done, how solid is it?</span>${['again','hard','good','easy'].map(r=>`<button type="button" class="pick r-${r}" data-a="rate" data-v="${r}">${{again:'Not yet',hard:'Shaky',good:'Got it',easy:'Easy'}[r]}</button>`).join('')}</div></div>`}
+function renderCard(){
+  const c=cardEl;if(!c)return;
+  if(cur&&cur.reader){const t=cur.reader;c.innerHTML=`<div class="meta"><span class="chip">Source</span><span>${esc(t.title)}</span><div class="tools">${t.url?`<a class="btn ghost sm" href="${esc(t.url)}" target="_blank" rel="noopener">Original</a>`:''}<button type="button" class="btn sm" data-a="back">Back to studying</button></div></div><div class="reader" id="rd"><p class="dots">Loading</p></div>`;
+    const show=h=>{const d=new DOMParser().parseFromString(h,'text/html');$('#rd').innerHTML=clean(d.body,{})||'<p>No saved text.</p>'};
+    if(t.htmlId)fetch('/_blob/'+t.htmlId).then(r=>r.text()).then(h=>{const d=new DOMParser().parseFromString(h,'text/html');$('#rd').innerHTML=cleanStored(d.body)}).catch(()=>show(md(t.source)));
+    else if(t.html)$('#rd').innerHTML=cleanStored(new DOMParser().parseFromString(t.html,'text/html').body);else $('#rd').innerHTML=md(t.source);return}
+  if(!cur){c.remove();cardEl=null;return}
+  const {t,u,item}=cur,f=u.format;
+  const head=`<div class="meta"><span class="chip${u.reps?' rev':''}">${u.reps?'Review':'New'} · ${FMT[f]}</span><span>${esc(t.title)}</span></div>
+   <h2>${esc(item&&item.title||u.title)}</h2><p class="why">Goal: ${esc(u.goal)}</p>`;
+  if(cur.err){c.innerHTML=head+`<p>${esc(cur.err)}</p><button class="btn" data-a="retry">Try again</button>`;bindSw();return}
+  if(!item){c.innerHTML=head+`<div class="load"><p class="dots">${esc(cur.stage||'Building your '+FMT[f].toLowerCase())}</p></div>`;return}
+  const fig=cur.fig?`<figure><img src="/_blob/${esc(cur.fig.id)}" alt="${esc(cur.fig.alt)}"><figcaption>Figure ${cur.fig.n}${cur.fig.alt?': '+esc(cur.fig.alt):''}</figcaption></figure>`:'';
+  c.innerHTML=head+(item.primer?`<div class="primer">${md(item.primer)}</div>`:'')+fig+body(f,item)+fbHTML(f);
+  if(f==='diagram')loadMM().then(m=>m.render('g'+rid(),item.mermaid)).then(r=>{$('#mm').innerHTML=r.svg}).catch(()=>{$('#mm').innerHTML=`<pre><code>${esc(item.mermaid)}</code></pre>`});
+  if(f==='flashcards'){cur.fi=cur.fi||0;cur.hit=cur.hit||0;drawFC()}
+  if(f==='code')initIDE(item,u);
+  const ed=$('#ed');if(ed)ed.addEventListener('keydown',e=>{if(e.key==='Tab'){e.preventDefault();ed.setRangeText('    ',ed.selectionStart,ed.selectionEnd,'end')}});
+  bindSw();
+}
+function cleanStored(node){/* stored HTML is already cleaned; re-clean but keep our /_blob figures */
+  let h='';for(const n of node.childNodes){if(n.nodeType===3){h+=esc(n.textContent);continue}if(n.nodeType!==1)continue;const t=n.tagName.toUpperCase();
+    if(DROP.has(t))continue;if(t==='IMG'){const s=n.getAttribute('src')||'';if(/^\/_blob\/[\w-]+$/.test(s))h+=`<img src="${esc(s)}" alt="${esc(n.getAttribute('alt'))}" loading="lazy">`;continue}
+    if(!OKT.has(t)){h+=cleanStored(n);continue}
+    if(t==='A'){const u=n.getAttribute('href')||'';h+=/^https?:/i.test(u)?`<a href="${esc(u)}" target="_blank" rel="noopener">${cleanStored(n)}</a>`:cleanStored(n);continue}
+    if(t==='BR'||t==='HR'){h+=`<${t.toLowerCase()}>`;continue}
+    const cls=t==='P'&&n.className==='why'?' class="why"':'';const g=t==='SECTION'?'div':t.toLowerCase();h+=`<${g}${cls}>${cleanStored(n)}</${g}>`}return h}
+function bindSw(){const s=$('#sw');if(!s)return;s.onchange=e=>{const {t,u}=cur,f=u.format,v=e.target.value,st=P.formatStats;(st[f]=st[f]||{up:0,down:0}).down++;(st[v]=st[v]||{up:0,down:0}).up++;u.format=v;saveP();saveT(t);load([t,u])}}
+let cm=null,runTimer=null,runSeq=0;
+const getCode=()=>cm?cm.getValue():($('#ed')?$('#ed').value:'');
+function initIDE(it,u){cm=null;const host=$('#cm'),start=u.draft||it.starter||'';const sched=()=>{if(cur)cur.code=getCode();clearTimeout(runTimer);runTimer=setTimeout(()=>autoRun(),1300)};
+  const fallback=()=>{if(!host.isConnected)return;host.innerHTML=`<textarea class="code" id="ed" spellcheck="false">${esc(start)}</textarea>`;const ed=$('#ed');ed.addEventListener('input',sched);ed.addEventListener('keydown',e=>{if(e.key==='Tab'){e.preventDefault();ed.setRangeText('    ',ed.selectionStart,ed.selectionEnd,'end')}if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)){e.preventDefault();autoRun(true)}})};
+  loadCM().then(CM=>{if(!host.isConnected)return;cm=CM(host,{value:start,mode:'python',lineNumbers:true,indentUnit:4,tabSize:4,lineWrapping:false,viewportMargin:Infinity,
+    extraKeys:{Tab:c=>c.somethingSelected()?c.indentSelection('add'):c.replaceSelection('    '),'Shift-Tab':c=>c.indentSelection('subtract'),'Ctrl-Enter':()=>autoRun(true),'Cmd-Enter':()=>autoRun(true)}});cm.on('change',sched)}).catch(fallback);
+  if(u.draft)setTimeout(()=>autoRun(),600)}
+async function autoRun(force){
+  if(!cur||!cur.item||cur.u.format!=='code')return;const it=cur.item,u=cur.u,code=getCode();if(!force&&code===cur.lastRun)return;cur.lastRun=code;
+  const my=++runSeq,sum=$('#tsum');if(sum){sum.className='';sum.textContent=wWarm||useMain?'Running…':'Starting Python (first run ~10 s)…'}
+  u.draft=code.slice(0,40000);saveT(cur.t);
+  let r;try{r=await runTests(code,it.tests,it.viz)}catch(e){if(my!==runSeq)return;if(sum){sum.className='no';sum.textContent='Run stopped'}$('#out').textContent=e.message;return}
+  if(my!==runSeq||!cur||cur.item!==it)return;
+  const n=r.tests.length,ok=r.tests.filter(x=>x.ok).length;cur.runs=(cur.runs||0)+1;
+  sum.className=ok===n&&!r.setup?'ok':'no';sum.textContent=r.setup?'Your code has an error':`${ok}/${n} passing`;
+  $('#tlist').innerHTML=r.tests.map((x,i)=>{const h=it.tests[i]&&it.tests[i].hidden;return `<div class="tt ${x.ok?'pass':'fail'}"><b>${x.ok?'pass':'fail'}</b>${h?'Hidden test '+(i+1):esc(x.name)} <span class="why">${x.ms} ms</span>${x.ok?'':`<pre>${esc(x.err)}</pre>`}</div>`}).join('');
+  $('#out').textContent=(r.setup?r.setup+'\n':'')+(r.stdout?'stdout:\n'+r.stdout:'');
+  $('#vz').innerHTML=r.viz?`<img class="vz" alt="Plot of your code's output" src="data:image/png;base64,${r.viz}">`:'';
+  if(!cur.peeked)cur.score=Math.round(100*ok/Math.max(1,n));
+  if(ok===n&&!r.setup&&!cur.allPassed){cur.allPassed=true;$('#hints').insertAdjacentHTML('beforeend',`<div class="nudge"><b>All ${n} tests pass.</b> Here’s my review, then tell me how solid it feels.</div>`);reviewCode()}
+  const firstFail=r.setup?'__setup':(r.tests.find(x=>!x.ok)||{}).name;
+  if(firstFail){cur.streak[firstFail]=(cur.streak[firstFail]||0)+1;if(cur.streak[firstFail]===3)nudge(code,firstFail,r)}else cur.streak={}}
+async function nudge(code,name,r){
+  const t=r.tests.find(x=>x.name===name),err=name==='__setup'?r.setup:(t&&t.err),test=(cur.item.tests||[]).find(x=>x.name===name);
+  try{const h=await ask(`${ctx()}
+The learner has failed the same test 3 runs in a row. Give ONE Socratic nudge (max 3 sentences) that points at the misconception without giving the code.
+TASK: ${cur.item.brief}\nTEST: ${test?test.code:name}\nERROR: ${err}\nTHEIR CODE:\n${code}
+Return ONLY JSON: {"nudge":""}`,'quick');if(h.nudge&&$('#hints'))$('#hints').insertAdjacentHTML('beforeend',`<div class="nudge">${md(h.nudge)}</div>`)}catch(e){}}
+function reviewCode(){const it=cur.item,rv=$('#rev');if(!rv)return;rv.innerHTML='<p class="dots">Reviewing</p>';
+  grade('code',`TASK:\n${it.brief}\nTESTS (all passing: ${cur.allPassed?'yes':'no'}):\n${JSON.stringify((it.tests||[]).map(t=>t.name))}\nREFERENCE SOLUTION (for comparison only):\n${it.reference||''}\nLEARNER CODE:\n${getCode()}\nJudge correctness beyond the tests, complexity, numerical stability, vectorization, readability, and what an interviewer would push on next.`,true)
+   .then(r=>{cur.score=cur.peeked?Math.min(50,+r.score||0):+r.score||0;if(r.dims)cur.dims=r.dims;if($('#rev'))$('#rev').innerHTML=resHTML(r)}).catch(e=>{if($('#rev'))$('#rev').innerHTML=`<p>${esc(e.message)}</p>`})}
+function drawFC(){const cs=cur.item.cards||[],i=cur.fi,b=$('#fc');if(!b)return;
+  if(i>=cs.length){cur.score=Math.round(100*cur.hit/Math.max(1,cs.length));b.innerHTML=`<p><b>${cur.hit}/${cs.length}</b> recalled.</p>`;return}
+  b.innerHTML=`<p class="why">Card ${i+1} of ${cs.length}</p><div class="flash">${cur.flip?md(cs[i].back):md(cs[i].front)}</div><div class="row">${cur.flip?`<button class="btn" data-a="fcY">Got it</button><button class="btn ghost" data-a="fcN">Missed</button>`:`<button class="btn" data-a="flip">Show answer</button>`}</div>`}
+function renderStat(){const now=Date.now(),due=T.reduce((a,t)=>a+t.units.filter(u=>u.status!=='new'&&u.due<=now).length,0),today=P.day===new Date().toDateString()?P.today:0;
+  $('#stat').textContent=T.length?`${today} done today · ${due} due · ${T.length} track${T.length>1?'s':''}`:''}
+function progressHTML(){const now=Date.now();const s=Object.entries(P.formatStats).filter(([k])=>FMT[k]),mx=Math.max(1,...s.map(([,v])=>v.up+v.down));
+  const dl=P.log.filter(x=>x.dims),avg=DIMS.map(k=>[k,dl.length?dl.reduce((a,x)=>a+(+x.dims[k]||0),0)/dl.length:0]);
+  return (T.length?`<p><b>What you're learning</b></p>`+T.map(t=>{const n=t.units.length,l=t.units.filter(u=>u.status!=='new').length,d=t.units.filter(u=>u.status!=='new'&&u.due<=now).length;
+    return `<div class="tr"><div><b>${esc(t.title)}</b><small>${l}/${n} started${d?` · ${d} due`:''}${t.figs&&t.figs.length?` · ${t.figs.length} figures`:''}</small><div class="bar"><i style="width:${Math.round(100*l/n)}%"></i></div></div>
+    <div class="trb"><button type="button" class="btn ghost sm" data-a="ws" data-t="${t.id}">Workspace</button><button type="button" class="btn ghost sm" data-a="study" data-t="${t.id}">Review</button>${t.htmlId||t.html||t.source.length>400?`<button type="button" class="btn ghost sm" data-a="read" data-t="${t.id}">Read</button>`:''}<button type="button" class="btn ghost sm" data-a="del" data-t="${t.id}">Delete</button></div></div>`}).join(''):'<p>Nothing yet.</p>')
+   +(L.items.length?`<p class="why" style="margin-top:10px">Library: ${L.items.length} items in ${L.clusters.length} clusters. <button type="button" class="btn ghost sm" data-a="showLib">Show it</button></p>`:'')
+   +(P.learnerNote?`<p style="margin-top:12px"><b>What I've learned about how you learn</b></p>${md(P.learnerNote)}`:'')
+   +(P.playbook&&Object.keys(P.playbook).length?`<p style="margin-top:12px"><b>My playbook for you</b> <span class="why">(I rewrite this from your results)</span></p><ul>${Object.entries(P.playbook).map(([k,v])=>`<li><b>${esc(k)}</b>: ${esc(v)}</li>`).join('')}</ul>`:'')
+   +(P.asks&&P.asks.length?`<p class="why">You've asked me to: ${P.asks.map(esc).join('; ')}</p>`:'')
+   +(s.length?`<p style="margin-top:12px"><b>Style votes</b></p>`+s.map(([k,v])=>`<div class="fs"><span>${FMT[k]}</span><div class="bar" style="margin:0;max-width:none"><i style="width:${Math.round(100*v.up/mx)}%;background:var(--good)"></i></div><span>+${v.up} −${v.down}</span></div>`).join(''):'')
+   +(dl.length?`<p style="margin-top:12px"><b>Interview rubric, average of ${dl.length}</b></p><div class="dims">${avg.map(([k,v])=>`<span>${k[0].toUpperCase()+k.slice(1)}</span><div class="bar"><i style="width:${v*25}%"></i></div><span>${v.toFixed(1)}</span>`).join('')}</div>`:'')}
+function render(){renderCard();renderStat()}
+
+
+/* ---------- library: import lists, organize in the background ---------- */
+function parseList(text){
+  const items=[],seen=new Set();
+  const add=(title,url)=>{title=String(title||'').replace(/^\s*([-*•+]|\d+[.)])\s+/,'').replace(/^\[[ x]\]\s*/i,'').trim();url=String(url||'').trim();
+    if(url&&!/^https?:/i.test(url))url='';const k=(url||title).toLowerCase().replace(/#.*$/,'').replace(/[?&]utm_[^&]*/g,'').replace(/\/$/,'');
+    if(!k||k.length<3||seen.has(k)||/^(title|name|url|link)s?(,|\t|$)/i.test(title)&&!url)return;seen.add(k);items.push({title:title||url,url})};
+  if(/<a\s[^>]*href/i.test(text)){new DOMParser().parseFromString(text,'text/html').querySelectorAll('a[href]').forEach(a=>add(a.textContent,a.getAttribute('href')));return items}
+  if(/^\s*[\[{]/.test(text)){try{const walk=o=>{if(Array.isArray(o))o.forEach(walk);else if(o&&typeof o==='object'){const u=o.url||o.href||o.link||o.uri;if(u||((o.title||o.name)&&!o.children))add(o.title||o.name||'',u||'');Object.values(o).forEach(v=>{if(v&&typeof v==='object')walk(v)})}else if(typeof o==='string')add(o,'')};walk(JSON.parse(text));if(items.length)return items}catch(e){}}
+  for(const line of text.split(/\r?\n/)){const l=line.trim();if(!l||/^#{1,6}\s/.test(l)&&!/https?:/.test(l)||/^[-=*_]{3,}$/.test(l))continue;
+    const m=l.match(/\[([^\]]+)\]\((https?:[^)\s]+)\)/);if(m){add(m[1],m[2]);continue}
+    const u=l.match(/https?:\/\/[^\s,"'<>)\]]+/);if(u){add(l.replace(u[0],'').replace(/["\t]/g,' ').replace(/^[\s,|:–—-]+|[\s,|:–—-]+$/g,''),u[0]);continue}
+    add(l.split('\t')[0],'')}
+  return items}
+const looksLikeList=t=>{const ls=t.split(/\r?\n/).filter(x=>x.trim());return ls.length>=3&&(ls.filter(l=>/https?:\/\//.test(l)).length>=2||ls.filter(l=>/^\s*([-*•+]|\d+[.)])\s/.test(l)).length>=3||/<a\s[^>]*href/i.test(t))};
+let organizing=false,libMsg=null;
+async function importList(text,name){
+  const got=parseList(text);if(!got.length){status('I couldn’t find any items in that. Paste one item per line, or links.');return}
+  const have=new Set(L.items.map(x=>(x.url||x.title).toLowerCase().replace(/#.*$/,'').replace(/[?&]utm_[^&]*/g,'').replace(/\/$/,'')));
+  const fresh=got.filter(x=>!have.has((x.url||x.title).toLowerCase().replace(/#.*$/,'').replace(/[?&]utm_[^&]*/g,'').replace(/\/$/,''))).slice(0,600-L.items.length);
+  fresh.forEach(x=>L.items.push({id:rid(),title:x.title,url:x.url,done:false,added:Date.now()}));L.stale=true;saveL();
+  libMsg=say(`<p>Got ${got.length} item${got.length>1?'s':''}${name?' from '+esc(name):''}${got.length-fresh.length?` (${got.length-fresh.length} already in your library)`:''}. I’ll organize them in the background; keep studying.</p>`);
+  organize()}
+async function organize(){
+  if(organizing||!sample)return;organizing=true;
+  const upd=h=>{if(libMsg&&libMsg.isConnected)libMsg.innerHTML=h;else libMsg=say(h)};
+  try{
+    let todo=L.items.filter(x=>!x.done);
+    while(todo.length){const batch=todo.slice(0,25),total=L.items.length,done=total-todo.length;
+      upd(`<p class="dots">Organizing your library: ${done}/${total} identified</p>`);
+      const r=await ask(`You are organizing a learner's imported learning list (papers, blog posts, courses, videos, repos, problems, topics).
+${ctx()}
+For each item use its title, URL, and what you actually know about it. Never invent details: if you don't recognize an item, say so in "gist" and set "known": false.
+ITEMS: ${JSON.stringify(batch.map((x,i)=>({i,title:x.title,url:x.url})))}
+Return ONLY JSON: {"items":[{"i":0,"title":"clean, specific title","kind":"paper|blog|course|video|repo|book|problem|topic|other","gist":"one sentence: what it is and why it matters for this learner","concepts":["3-6 specific concepts, lowercase canonical names so overlaps line up across items"],"level":"intro|intermediate|advanced","mins":30,"known":true}]}`,'quick');
+      (r.items||[]).forEach(o=>{const x=batch[+o.i];if(!x)return;Object.assign(x,{title:o.title||x.title,kind:o.kind||'other',gist:o.gist||'',concepts:(o.concepts||[]).slice(0,6),level:o.level||'',mins:+o.mins||0,known:o.known!==false,done:true})});
+      batch.forEach(x=>{if(!x.done){x.done=true;x.gist=x.gist||'Could not identify this one.';x.known=false}});
+      saveL();todo=L.items.filter(x=>!x.done)}
+    if(L.stale||!L.clusters.length){
+      upd(`<p class="dots">Finding clusters and overlaps across ${L.items.length} items</p>`);
+      const idx=L.items.map((x,i)=>({i,t:x.title.slice(0,90),k:x.kind,c:x.concepts,l:x.level}));
+      const r=await ask(`${ctx()}
+Organize this learner's library into a learning map.
+ITEMS: ${JSON.stringify(idx)}
+EXISTING STUDY TRACKS: ${JSON.stringify(T.map(t=>t.title))}
+Return ONLY JSON: {"summary":"2-3 sentences: main themes, what's strongest, gaps worth filling for their goals","clusters":[{"name":"short","why":"one sentence: what this cluster teaches and why it matters for their goals","prereqs":"what to know first, or which cluster to do first","priority":3,"items":[i, ... in recommended study order]}],"overlaps":[{"items":[i,j],"shared":"what they cover in common","advice":"concrete: which to use as primary, what each uniquely adds, what to skip"}],"duplicates":[[i,j]],"covered":[{"i":0,"track":"existing track title"}],"order":["cluster names in suggested study order"]}
+Rules: every item in exactly one cluster; 3 to 10 clusters (fewer for small lists); priority 3 = core for ML coding / interviews / their research, 1 = nice to have; only list overlaps that are real and useful.`,'default');
+      const id=i=>L.items[+i]&&L.items[+i].id;
+      L.clusters=(r.clusters||[]).map(c=>({id:rid(),name:c.name,why:c.why,prereqs:c.prereqs,priority:+c.priority||2,items:(c.items||[]).map(id).filter(Boolean)}));
+      const placed=new Set(L.clusters.flatMap(c=>c.items)),lost=L.items.filter(x=>!placed.has(x.id)).map(x=>x.id);
+      if(lost.length)L.clusters.push({id:rid(),name:'Unsorted',why:'Items I couldn’t place confidently.',prereqs:'',priority:1,items:lost});
+      L.overlaps=(r.overlaps||[]).map(o=>({items:(o.items||[]).map(id).filter(Boolean),shared:o.shared,advice:o.advice})).filter(o=>o.items.length>1);
+      L.items.forEach(x=>{delete x.dup;delete x.covered});
+      (r.duplicates||[]).forEach(d=>{const a=id(d[0]),b=id(d[1]);const xb=L.items.find(x=>x.id===b);if(a&&xb)xb.dup=a});
+      (r.covered||[]).forEach(c=>{const x=L.items[+c.i];if(x)x.covered=c.track});
+      L.order=r.order||[];L.summary=r.summary||'';L.stale=false;L.updated=Date.now();saveL()}
+    upd(`<p>Your library is organized: ${L.items.length} items in ${L.clusters.length} clusters, ${L.overlaps.length} overlap${L.overlaps.length===1?'':'s'} found.</p>`);
+    say(libraryHTML(),'t lib');
+  }catch(e){upd(`<p>Organizing paused: ${esc(e.message||'error')}. I’ll pick it up again next time you open me, or say “organize my list”.</p>`)}
+  organizing=false}
+function libraryHTML(){
+  if(!L.items.length)return '<p>Your library is empty. Paste a list of links or topics, or tap + to import a file (bookmarks export, markdown, CSV, JSON).</p>';
+  const byId=Object.fromEntries(L.items.map(x=>[x.id,x])),ovOf={};L.overlaps.forEach((o,k)=>o.items.forEach(i=>(ovOf[i]=ovOf[i]||[]).push(k)));
+  const ord=[...L.clusters].sort((a,b)=>{const ia=L.order.indexOf(a.name),ib=L.order.indexOf(b.name);return (ia<0?99:ia)-(ib<0?99:ib)||b.priority-a.priority});
+  const item=x=>`<div class="it"><div>${x.url?`<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.title)}</a>`:`<b>${esc(x.title)}</b>`}<small>${[x.kind,x.level,x.mins?'~'+x.mins+' min':''].filter(Boolean).map(esc).join(' · ')}${x.known===false?' · not recognized':''}</small>
+    <div>${esc(x.gist||'')}</div><div>${(x.concepts||[]).map(c=>`<span class="tag">${esc(c)}</span>`).join('')}${(ovOf[x.id]||[]).map(k=>`<span class="tag ov">overlap ${k+1}</span>`).join('')}${x.dup&&byId[x.dup]?`<span class="tag dup">duplicate of ${esc(byId[x.dup].title.slice(0,40))}</span>`:''}${x.covered?`<span class="tag cov">covered by your track: ${esc(x.covered)}</span>`:''}${x.trackId?'<span class="tag cov">studying</span>':''}</div></div>
+    <div><button type="button" class="btn ghost sm" data-a="learnItem" data-i="${x.id}">Learn</button></div></div>`;
+  return `<p><b>Your library</b> · ${L.items.length} items</p>${L.summary?md(L.summary):''}`
+   +ord.map(c=>`<div class="cl"><h4>${c.priority>=3?'<span class="pr" title="High priority"></span>':''}${esc(c.name)} <span class="why" style="font-weight:400">${c.items.length} item${c.items.length>1?'s':''}</span></h4><p>${esc(c.why||'')}</p>${c.prereqs?`<p class="why">First: ${esc(c.prereqs)}</p>`:''}
+     <div class="row"><button type="button" class="btn sm" data-a="learnCluster" data-c="${c.id}">Learn this cluster</button></div>${c.items.map(i=>byId[i]).filter(Boolean).map(item).join('')}</div>`).join('')
+   +(L.overlaps.length?`<div class="cl"><h4>Overlaps</h4>${L.overlaps.map((o,k)=>`<div class="it" style="grid-template-columns:1fr"><div><span class="tag ov">overlap ${k+1}</span> ${o.items.map(i=>byId[i]).filter(Boolean).map(x=>`<b>${esc(x.title)}</b>`).join(' + ')}<small>Shared: ${esc(o.shared||'')}</small><div>${esc(o.advice||'')}</div></div></div>`).join('')}</div>`:'');
+}
+async function learnCluster(c){
+  const items=c.items.map(i=>L.items.find(x=>x.id===i)).filter(x=>x&&!x.dup);
+  const ov=L.overlaps.filter(o=>o.items.some(i=>c.items.includes(i))).map(o=>`- ${o.items.map(i=>(L.items.find(x=>x.id===i)||{}).title).join(' + ')}: ${o.shared}. ${o.advice}`).join('\n');
+  const src=`Learning cluster: ${c.name}\nWhy: ${c.why}\nPrerequisites: ${c.prereqs||'none stated'}\nItems in recommended order (teach the shared ideas once, then what each item uniquely adds; anchor build units to named papers in the list):\n${items.map((x,k)=>`${k+1}. ${x.title}${x.url?' ('+x.url+')':''} [${x.kind||''}, ${x.level||''}]: ${x.gist||''} Concepts: ${(x.concepts||[]).join(', ')}`).join('\n')}${ov?'\nOverlaps:\n'+ov:''}`;
+  const t=await addTrack(src);if(t){items.forEach(x=>x.trackId=t.id);saveL()}}
+async function learnItem(x){
+  const isArx=x.url&&/arxiv\.org|alphaxiv\.org/.test(x.url);
+  const t=await addTrack(isArx?x.url:`${x.title}${x.url?' ('+x.url+')':''}\nContext: ${x.gist||''}\nConcepts: ${(x.concepts||[]).join(', ')}`);
+  if(t){x.trackId=t.id;saveL();if(x.url&&!isArx&&/blog|other|course/.test(x.kind||''))say(`<p class="why">Want me to teach from the actual post and its figures? Open it, capture it with the bookmark, and paste it here.</p>`+SETUP)}}
+
+
+/* ---------- spawned workspaces: a custom UI per subject, sandboxed, with a bridge ---------- */
+const BRIDGE=`<script>window.SL=(()=>{let n=0;const P={};addEventListener('message',e=>{const d=e.data;if(d&&d.slr&&P[d.id]){P[d.id](d.value);delete P[d.id]}});const call=(t,a)=>new Promise(r=>{const id=++n;P[id]=r;parent.postMessage({sl:t,id,args:a},'*')});return{run:(code,tests,viz)=>call('run',{code,tests,viz}),ask:p=>call('ask',{p}),fig:k=>call('fig',{k}),progress:(m,score,note)=>parent.postMessage({sl:'progress',args:{m,score,note}},'*'),save:o=>parent.postMessage({sl:'save',args:o},'*'),state:__STATE__,milestones:__MS__}})();<\/script>`;
+let wsFrame=null,wsTrack=null,wsAsks=0;
+async function spawnEnv(t,prog,extra){
+  prog('Designing a workspace for '+t.title);
+  const figs=(t.figs||[]).map(f=>`Figure ${f.n}: ${f.alt||''}`).join('\n');
+  const prompt=`${ctx(t.kind)}
+Build a custom, self-contained interactive LEARNING WORKSPACE (one HTML document) that takes this learner from zero to mastery of: ${t.title} (${t.kind}).
+Method: ${t.method}
+STRAIGHT-SHOT PLAN (milestones, in order; index from 0):
+${t.units.map((u,i)=>`${i}. ${u.title}: ${u.goal}`).join('\n')}
+SOURCE (excerpt):
+<<<${t.source.slice(0,9000)}>>>
+${figs?'SOURCE FIGURES available through SL.fig(n):\n'+figs:''}
+${extra?'LEARNER FEEDBACK ON THE PREVIOUS VERSION (must address):\n'+extra:''}
+Requirements:
+- Design the interface around THIS subject. Make the core ideas tangible: explorables with sliders, step-through animations, live visual simulations, prediction prompts ("guess, then reveal"), small code labs, worked examples that fade into practice. Never generic flashcard pages or walls of text.
+- One stage per milestone, in plan order, with a sticky progress rail. Straight shot: minimum reading, maximum doing. Each stage ends with a MASTERY CHECK that is genuinely hard to pass without understanding.
+- Code labs: an editor (a styled textarea is fine) plus tests, run with the bridge. Python 3 with numpy and matplotlib.
+- The bridge object window.SL already exists (never redefine it):
+  await SL.run(code, tests, viz?) -> {setup: error string or null, tests:[{name, ok, err, ms}], stdout, viz: base64 png or null}; tests = [{name, code}] using assert with messages; viz = optional matplotlib code.
+  await SL.ask(prompt) -> string. Claude grades free-text answers or explains; ask for exactly the format you need.
+  await SL.fig(n) -> data URL of source figure n, or null.
+  SL.progress(milestoneIndex, score0to100, note) when a mastery check is attempted (call it on every attempt).
+  SL.state (object or null) and SL.save(obj): persist and resume the learner's place, answers and code.
+- Look: crisp, modern, readable, generous spacing, one accent colour drawn from the subject, light and dark via prefers-color-scheme, works at 360px wide. System fonts or one Google Font.
+- Self-contained: inline CSS and JS. Only if truly needed, libraries from https://cdn.jsdelivr.net/npm/ or https://cdnjs.cloudflare.com (e.g. KaTeX for maths, d3). No other network access, no localStorage, no alert/confirm.
+- Keep it under about 600 lines, complete and working: every button wired, no placeholders.
+Return ONLY the HTML document, starting with <!DOCTYPE html>.`;
+  let html='';
+  for(let i=0;i<2&&!html;i++){
+    const r=await sample(i?prompt+'\nYour previous attempt was cut off. Keep it under 400 lines.':prompt,{modelTier:'complex',cache:false,onText:({text})=>{prog(`Building your workspace (${Math.round(text.length/1000)}k written)`)}});
+    const tx=r.text||'',a=tx.search(/<!DOCTYPE html>|<html/i),b=tx.lastIndexOf('</html>');
+    if(a>=0&&b>a&&!r.truncated)html=tx.slice(a,b+7)}
+  if(!html)throw new Error('The workspace came out incomplete. Say “rebuild the workspace” to try again.');
+  t.envV=(t.envV||0)+1;
+  if(assets){try{t.envId=(await assets.upload(new Blob([html],{type:'text/plain'}),{type:'text/plain'})).id;delete t.env}catch(e){t.env=html}}else t.env=html;
+  saveT(t);return html}
+async function envHTML(t){if(t.envId){const r=await fetch('/_blob/'+t.envId);if(r.ok)return r.text()}return t.env||null}
+async function openEnv(t,rebuildNote){
+  clearInterval(tick);cur={ws:t};newCard();const c=cardEl;c.classList.add('ws');
+  const head=()=>`<div class="meta"><span class="chip">Workspace</span><span>${esc(t.title)}</span><span class="why">${t.units.filter(u=>u.status!=='new').length}/${t.units.length} milestones</span><div class="tools"><button type="button" class="btn ghost sm" data-a="wsFull">Full screen</button><button type="button" class="btn ghost sm" data-a="back">Close</button></div></div>`;
+  c.innerHTML=head()+`<div class="load"><p class="dots" id="wsl">Opening your workspace</p></div>`;
+  const prog=m=>{const l=c.querySelector('#wsl');if(l)l.textContent=m};
+  try{let html=rebuildNote?null:await envHTML(t);if(!html)html=await spawnEnv(t,prog,rebuildNote);if(cur.ws!==t)return;
+    const inj=BRIDGE.replace('__STATE__',()=>JSON.stringify(t.envState||null).replace(/</g,'\\u003c')).replace('__MS__',()=>JSON.stringify(t.units.map(u=>({title:u.title,goal:u.goal,done:u.status!=='new',score:u.last&&u.last.score}))).replace(/</g,'\\u003c'));
+    const doc=/<head[^>]*>/i.test(html)?html.replace(/<head[^>]*>/i,m=>m+inj):inj+html;
+    c.innerHTML=head();const f=document.createElement('iframe');f.className='wsf';f.title='Workspace for '+t.title;f.setAttribute('sandbox','allow-scripts allow-forms allow-modals');f.srcdoc=doc;c.append(f);wsFrame=f;wsTrack=t}
+  catch(e){c.innerHTML=head()+`<p style="padding:16px">${esc(e.message||'Could not build the workspace.')}</p>`}}
+let wsSaveT=null;
+addEventListener('message',async e=>{
+  if(!wsFrame||e.source!==wsFrame.contentWindow)return;const d=e.data||{},t=wsTrack,reply=v=>wsFrame&&wsFrame.contentWindow&&wsFrame.contentWindow.postMessage({slr:1,id:d.id,value:v},'*');
+  try{
+    if(d.sl==='run'){const a=d.args||{};try{reply(await runTests(String(a.code||''),Array.isArray(a.tests)?a.tests:[],a.viz||''))}catch(err){reply({setup:err.message,tests:[],stdout:'',viz:null})}}
+    else if(d.sl==='ask'){if(++wsAsks>80){reply('Limit reached for this session.');return}
+      try{const r=await sample(`${ctx(t.kind)}\nYou are the tutor inside the learner's workspace for "${t.title}". Be precise and brief.\n\n${String(d.args&&d.args.p||'').slice(0,12000)}`,{modelTier:'default',cache:false});reply(r.text||'')}catch(err){reply('Error: '+(err.message||err.code||'failed'))}}
+    else if(d.sl==='fig'){const k=+(d.args&&d.args.k),f=(t.figs||[]).find(x=>x.n===k);if(!f){reply(null);return}const b=await figBlob(f);if(!b){reply(null);return}const fr=new FileReader;fr.onload=()=>reply(fr.result);fr.readAsDataURL(b)}
+    else if(d.sl==='save'){const s=JSON.stringify(d.args||null);if(s.length<60000){t.envState=d.args;clearTimeout(wsSaveT);wsSaveT=setTimeout(()=>saveT(t),1500)}}
+    else if(d.sl==='progress'){const a=d.args||{},u=t.units[+a.m];if(!u)return;const sc=Math.max(0,Math.min(100,+a.score||0)),now=Date.now();
+      const rating=sc>=90?'easy':sc>=75?'good':sc>=50?'hard':'again',wasNew=u.status==='new';
+      u.interval=rating==='again'?0:rating==='hard'?1:rating==='good'?2:4;u.due=now+(rating==='again'?10*60e3:u.interval*D);u.status='learning';u.reps=(u.reps||0)+1;u.last={rating,score:sc,at:now};t.touched=now;
+      P.log.push({at:now,kind:t.kind,unit:u.title,fmt:'workspace',rating,score:sc,note:String(a.note||'').slice(0,200)});P.log=P.log.slice(-60);
+      const day=new Date().toDateString();if(P.day!==day){P.day=day;P.today=0}P.today++;P.done++;
+      saveT(t);saveP();renderStat();if(P.log.length%(P.log.length<15?3:5)===0)refreshModel();
+      if(sc>=75&&wasNew){const nx=t.units.findIndex(x=>x.status==='new');say(`<p class="why">Milestone done: <b>${esc(u.title)}</b> (${sc}). ${nx<0?'That was the last one. I’ll bring the key ideas back for review on schedule.':'Next: '+esc(t.units[nx].title)+'.'}</p>`)}}
+  }catch(err){}});
+
+/* ---------- the teacher: understands whatever you type ---------- */
+async function send(){const m=$('#msg'),txt=m.value.trim();if(!txt&&!pending)return;m.value='';m.style.height='';
+  if(pending){say(esc(txt)+(txt?'\n':'')+'[captured: '+esc(pending.title||pending.url)+']','me');return addTrack(txt)}
+  say(esc(txt),'me');
+  if(looksLikeList(txt))return importList(txt);
+  if(/^https?:\/\/\S+$/.test(txt))return addTrack(txt);
+  if(/^(next|keep going|go|continue|more)\.?$/i.test(txt)){skipped.clear();return next()}
+  if(/^skip\.?$/i.test(txt)){if(cur&&cur.u)skipped.add(cur.u.id);return next()}
+  route(txt)}
+async function route(txt){const w=say('<p class="dots">Thinking</p>');
+  try{const it=cur&&cur.item;const r=await ask(`You are the learner's personal teacher inside Study Loop: warm, brief, direct. You decide what happens next.
+${ctx()}
+CURRENTLY OPEN WORKSPACE: ${cur&&cur.ws?cur.ws.id+' '+cur.ws.title:'none'}
+TRACKS: ${JSON.stringify(T.map(t=>({id:t.id,title:t.title,kind:t.kind,started:t.units.filter(u=>u.status!=='new').length,units:t.units.length})))}
+LIBRARY CLUSTERS: ${JSON.stringify(L.clusters.map(c=>({id:c.id,name:c.name,items:c.items.length})))}
+CURRENT EXERCISE: ${cur&&cur.u?JSON.stringify({unit:cur.u.title,goal:cur.u.goal,format:cur.u.format,content:it}).slice(0,6000):'none'}
+FORMATS: ${Object.keys(FMT).join(', ')}
+LEARNER SAYS: """${txt}"""
+Pick ONE action:
+- learn: they want to learn something new ("topic" = what, with every detail they gave)
+- next: move on / give me something
+- skip: skip the current exercise
+- switch: redo the current exercise in another format ("format")
+- feedback: they tell you how they want to be taught ("note" = a crisp standing instruction for future exercises; set "format" too if it implies changing the current one)
+- progress: they ask what they're learning, how they're doing, or what's due
+- read: they want to read a saved source ("trackId")
+- focus: they want to study a specific track now ("trackId")
+- delete: they explicitly ask to remove a track ("trackId")
+- library: they want to see their imported list / reading list / library map
+- cluster: they want to start learning one library cluster ("clusterId")
+- organize: they ask to (re)organize their library
+- workspace: they want to open the interactive workspace for a track ("trackId"; default the current or most recent track)
+- rebuild: they want the workspace rebuilt or changed ("trackId", "note" = exactly what to change)
+- help: they ask about or answer the current exercise; help Socratically in "say" (no full solution unless they ask for it)
+- chat: anything else
+Return ONLY JSON: {"action":"","say":"1-3 sentences, plain words","topic":"","format":"","trackId":"","clusterId":"","note":""}`,'quick');
+    w.innerHTML=md(r.say||'');if(!r.say)w.remove();
+    const t=T.find(x=>x.id===r.trackId);
+    switch(r.action){
+      case 'learn':return addTrack(r.topic||txt);
+      case 'next':skipped.clear();return next();
+      case 'skip':if(cur&&cur.u)skipped.add(cur.u.id);return next();
+      case 'switch':if(cur&&cur.u&&FMT[r.format])switchFmt(r.format);return;
+      case 'feedback':if(r.note){P.asks=[...(P.asks||[]),r.note].slice(-12);P.log.push({at:Date.now(),note:r.note});saveP();refreshModel()}
+        if(cur&&cur.u&&FMT[r.format]&&r.format!==cur.u.format)switchFmt(r.format);return;
+      case 'progress':say(progressHTML());return;
+      case 'library':say(libraryHTML(),'t lib');return;
+      case 'cluster':{const c=L.clusters.find(x=>x.id===r.clusterId);if(c)learnCluster(c);return}
+      case 'organize':L.stale=true;organize();return;
+      case 'workspace':{const tt=t||(cur&&(cur.ws||cur.t))||T[T.length-1];if(tt)openEnv(tt);return}
+      case 'rebuild':{const tt=t||(cur&&(cur.ws||cur.t))||T[T.length-1];if(tt){if(r.note){P.asks=[...(P.asks||[]),'Workspaces: '+r.note].slice(-12);saveP()}openEnv(tt,r.note||'Make it better.')}return}
+      case 'read':if(t)openReader(t);return;
+      case 'focus':if(t)focus(t);return;
+      case 'delete':if(t)say(`<p>Delete <b>${esc(t.title)}</b> and its saved progress?</p><div class="row"><button type="button" class="btn sm" data-a="del" data-t="${t.id}" data-sure="1">Delete it</button></div>`);return;
+    }
+  }catch(e){w.innerHTML=`<p>${esc(e.message||'Something went wrong. Try again.')}</p>`}}
+
+/* ---------- events ---------- */
+$('#att').onclick=()=>$('#file').click();
+async function importFile(f){if(!f)return;if(f.size>5e6){status('That file is over 5 MB; export a smaller list.');return}const t=await f.text();say('[imported '+esc(f.name)+']','me');importList(t,f.name)}
+$('#file').onchange=e=>{importFile(e.target.files[0]);e.target.value=''};
+addEventListener('dragover',e=>{e.preventDefault();document.body.classList.add('drag')});
+addEventListener('dragleave',e=>{if(!e.relatedTarget)document.body.classList.remove('drag')});
+addEventListener('drop',e=>{e.preventDefault();document.body.classList.remove('drag');const f=e.dataTransfer.files[0];if(f)importFile(f);else{const t=e.dataTransfer.getData('text');if(t&&looksLikeList(t))importList(t)}});
+$('#composer').addEventListener('submit',e=>{e.preventDefault();send()});
+$('#msg').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}});
+$('#msg').addEventListener('input',e=>{const m=e.target;m.style.height='auto';m.style.height=Math.min(180,m.scrollHeight)+'px'});
+document.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a,it=cur&&cur.item;
+  if(a==='copybm'){try{await navigator.clipboard.writeText('javascript:'+encodeURIComponent(BM));b.textContent='Copied'}catch(err){status('Copy was blocked here; drag the yellow button instead.')}return}
+  if(a==='unpend'){pending=null;showPending();return}
+  if(a==='ws'){const t=T.find(x=>x.id===b.dataset.t);if(t)openEnv(t);return}
+  if(a==='showLib'){say(libraryHTML(),'t lib');return}
+  if(a==='learnCluster'){const c=L.clusters.find(x=>x.id===b.dataset.c);if(c){b.disabled=true;learnCluster(c)}return}
+  if(a==='learnItem'){const x=L.items.find(y=>y.id===b.dataset.i);if(x){b.disabled=true;learnItem(x)}return}
+  if(a==='more'){skipped.clear();const p=pick()||T.flatMap(t=>t.units.map(u=>[t,u])).sort((x,y)=>x[1].due-y[1].due)[0];if(p)load(p);return}
+  if(a==='study'){const t=T.find(x=>x.id===b.dataset.t);if(t)focus(t);return}
+  if(a==='read'){const t=T.find(x=>x.id===b.dataset.t);if(t)openReader(t);return}
+  if(a==='back'){if(cur&&cur.ws){cur.ws.units.forEach(u=>{if(u.status==='new')skipped.add(u.id)});wsFrame=null}next();return}
+  if(a==='wsFull'){b.closest('.card').classList.toggle('full');b.textContent=b.closest('.card').classList.contains('full')?'Exit full screen':'Full screen';return}
+  if(a==='del'){const t=T.find(x=>x.id===b.dataset.t);if(!t)return;if(!b.dataset.sure&&!t._c){t._c=1;b.textContent='Confirm delete';setTimeout(()=>{delete t._c;if(b.isConnected)b.textContent='Delete'},4000);return}
+    const row=b.closest('.tr');if(row)row.remove();else b.parentNode.innerHTML='<span class="why">Deleted.</span>';
+    T=T.filter(x=>x!==t);lsSave();if(col)col.doc('t_'+t.id).delete().catch(()=>{});
+    if(assets){for(const id of [...(t.figs||[]).map(f=>f.id),t.htmlId,t.envId].filter(Boolean))assets.delete(id).catch(()=>{})}
+    if(cur&&(cur.t===t||cur.reader===t))next();else renderStat();return}
+  if(a==='skip'){skipped.add(cur.u.id);next();return}
+  if(a==='retry'){load([cur.t,cur.u]);return}
+  if(a==='rate'){cur.rating=b.dataset.v;finish('');return}
+  if(a==='alt'){cur.alt=cur.alt===b.dataset.v?null:b.dataset.v;b.parentNode.querySelectorAll('.pick').forEach(x=>x.classList.toggle('on',x.dataset.v===cur.alt));return}
+  if(a==='timer'){clearInterval(tick);const end=Date.now()+(+b.dataset.m)*6e4,el=$('#tm');b.textContent='Restart';
+    tick=setInterval(()=>{if(!document.body.contains(el)){clearInterval(tick);return}const s=Math.round((end-Date.now())/1e3),A=Math.abs(s);el.textContent=(s<0?'+':'')+Math.floor(A/60)+':'+String(A%60).padStart(2,'0');el.classList.toggle('late',s<0)},500);return}
+  if(a==='ans'){const q=it.questions[+b.dataset.q],c=+b.dataset.c,box=b.parentNode;if(box.dataset.done)return;box.dataset.done=1;
+    box.querySelectorAll('.opt').forEach((x,j)=>{if(j===+q.answer)x.classList.add('ok');else if(j===c)x.classList.add('no')});
+    $('#why'+b.dataset.q).innerHTML=md(q.why);cur.qs=(cur.qs||0)+(c===+q.answer?1:0);cur.score=Math.round(100*cur.qs/it.questions.length);return}
+  if(a==='flip'){cur.flip=1;drawFC();return}
+  if(a==='fcY'||a==='fcN'){if(a==='fcY')cur.hit++;cur.fi++;cur.flip=0;drawFC();return}
+  if(a==='hint'){cur.h=cur.h||0;const hs=it.hints||[];if(cur.h<hs.length){$('#hints').insertAdjacentHTML('beforeend',`<div class="primer">${md(hs[cur.h])}</div>`);cur.h++}else b.disabled=true;return}
+  if(a==='runT'){autoRun(true);return}
+  if(a==='sol'){if(!b.dataset.sure){b.dataset.sure=1;b.textContent='Reveal? (caps score at 50)';return}cur.peeked=true;$('#hints').insertAdjacentHTML('beforeend',`<details open class="nudge"><summary>Reference solution</summary><pre><code>${esc(it.reference||'Not available.')}</code></pre></details>`);b.remove();return}
+  if(a==='copy'){try{await navigator.clipboard.writeText(getCode());b.textContent='Copied'}catch(err){$('#ed').select()}return}
+  if(a==='nb'){const code=getCode()+(cur.u.format==='code'&&Array.isArray(it.tests)?'\n\n# ---- tests ----\n'+it.tests.map(t=>`# ${t.name}\n${t.code}`).join('\n\n')+"\nprint('ALL TESTS PASSED')":'');const name=(it.title||'assignment').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')+'.ipynb';
+    try{await downloads.save({filename:name,data:notebook(it.title||'Assignment',(it.paper?'**Paper:** '+it.paper+'\n\n':'')+(it.brief||''),code)})}catch(err){status('Download was declined or blocked. Use Copy code and paste into a Colab cell.')}return}
+  if(a==='run'){const o=$('#out');b.disabled=true;o.textContent=pyP?'Running…':'Loading Python (first run takes ~10 s)…';
+    try{const r=await runPy($('#ed').value+'\n\n'+it.tests);o.textContent=r;if(/ALL TESTS PASSED/.test(r))cur.score=100;else cur.score=cur.score??0}
+    catch(err){o.textContent='Could not load the Python runner here. Use “Review my code” or run it in Colab.'}b.disabled=false;return}
+  const busy=async(fn)=>{b.disabled=true;const t0=b.textContent;b.textContent='Grading…';try{const r=await fn();cur.score=+r.score||0;if(r.dims)cur.dims=r.dims;$('#rev').innerHTML=resHTML(r)}catch(err){$('#rev').innerHTML=`<p>${esc(err.message||'Grading failed.')}</p>`}b.disabled=false;b.textContent=t0};
+  if(a==='review'&&cur.u.format==='code'){reviewCode();return}
+  if(a==='review'){const isB=cur.u.format==='build';busy(()=>grade(isB?'paper implementation':'code',`TASK:\n${it.brief}\n${it.paper?'PAPER: '+it.paper+'\n':''}${it.tests?'TESTS:\n'+(typeof it.tests==='string'?it.tests:JSON.stringify(it.tests))+'\n':''}LEARNER CODE:\n${$('#ed').value}\nRun output:\n${isB?($('#runout').value||'(not run)'):$('#out').textContent}\nJudge correctness against the ${isB?'paper':'task'}, shapes, numerical stability, vectorization, training-loop hygiene, and what an interviewer would push on.`,true))}
+  if(a==='gradeX')busy(()=>grade('explanation',`PROMPT: ${it.prompt}\nKEY POINTS: ${JSON.stringify(it.keyPoints)}\nLEARNER ANSWER: ${$('#ans').value}\nScore by coverage and correctness of key points; flag any misconception.`));
+  if(a==='gradeM')busy(async()=>{clearInterval(tick);const el=$('#tm');const r=await grade('interview answer',`ROUND: ${it.round||''}\nQUESTION: ${it.question}\nCONTEXT: ${it.context}\nDELIVERABLES: ${JSON.stringify(it.deliverables||[])}\nRUBRIC: ${JSON.stringify(it.rubric)}\nTIME: ${el?el.textContent+' on the clock when submitted':''}\nLEARNER ANSWER: ${$('#ans').value}\nScore like a hiring panel at a frontier AI lab.`,true);if(it.followups&&it.followups.length)r.gaps=(r.gaps||[]).concat(it.followups.map(x=>'Follow-up to prepare: '+x));return r});
+});
+
+/* ---------- boot ---------- */
+(async()=>{
+  try{const d=JSON.parse(localStorage.getItem(LS)||'null');if(d){P=Object.assign(P,d.P);T=d.T||[];if(d.L)L=d.L}}catch(e){}
+  renderStat();
+  if(!window.claude){status('Open this page in Claude to turn on your teacher.');return}
+  const [db,user,s,as,dl,mc]=await Promise.all(['db','user','sample','assets','downloads','mcp'].map(n=>claude.use(n).catch(()=>null)));
+  sample=s;assets=as;downloads=dl;mcp=mc;
+  if(sample&&sample.limits){try{canImg=!!(await sample.limits()).images}catch(e){}}
+  if(db&&user){const uid=await user.id().catch(()=>null);
+    if(uid){col=db.collection('data/users/'+uid);const tm=setTimeout(()=>status('Saved progress is slow to load…'),10000);
+      try{const snap=await col.get();clearTimeout(tm);status('');let pp=null,tp=[];
+        let ll=null;snap.docs.forEach(x=>{const v=x.data();if(x.id==='profile')pp=v;else if(x.id==='library')ll=v;else if(x.id.startsWith('t_'))tp.push(v)});if(ll)L=ll;
+        if(pp||tp.length){P=Object.assign(P,pp||{});T=tp.sort((a,b)=>a.created-b.created);lsSave()}else if(T.length){saveP();T.forEach(saveT)}if(!ll&&L.items.length)saveL();
+      }catch(e){clearTimeout(tm);status('Could not reach saved progress; working in this browser only.')}}}
+  renderStat();
+  if(!sample){status('Your teacher is off in this view. Open the page in Claude to use it.');return}
+  if(!T.length&&(L.items.some(x=>!x.done)||L.stale))setTimeout(organize,1500);
+  if(!T.length)say(`<p>Hi. I’m your teacher. Tell me what you want to learn: a topic, an interview area, a LeetCode problem, an arXiv link, a blog post, or a whole list of them (paste it, or tap + to import a file). I’ll build you a workspace made for that subject and a straight-shot plan to mastery, then keep adjusting to what works for you. Talk to me like a person: “too easy”, “more visual”, “skip”, “what am I learning?”</p>`+SETUP);
+  else{const now=Date.now(),due=T.reduce((a,t)=>a+t.units.filter(u=>u.status!=='new'&&u.due<=now).length,0);
+    if(L.items.some(x=>!x.done)||L.stale)setTimeout(()=>{say('<p>Finishing the library organizing I started last time, in the background.</p>');organize()},1500);
+    say(`<p>Welcome back. ${due?due+' review'+(due>1?'s':'')+' due, starting there.':'Nothing due, so we’ll pick up the next new thing.'}</p>`);next()}
+})();
+}
+</script>
+</body></html>
